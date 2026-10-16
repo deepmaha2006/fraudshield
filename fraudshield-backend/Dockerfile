@@ -24,6 +24,14 @@ ENV NODE_ENV=production \
     DB_FILE=/data/fraudshield.db \
     UPLOAD_DIR=/data/uploads
 WORKDIR /app
+# Apply Debian security updates (the base image lags behind fixes), then remove the
+# package managers: the running service never needs npm/npx/corepack, and their
+# bundled dependencies (tar, undici, sigstore, …) are pure attack surface.
+RUN apt-get update \
+ && apt-get -y upgrade --no-install-recommends \
+ && apt-get clean && rm -rf /var/lib/apt/lists/* \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 COPY --from=build --chown=root:root /app /app
 RUN mkdir -p /data/uploads && chown -R node:node /data && chmod 700 /data
 USER node
