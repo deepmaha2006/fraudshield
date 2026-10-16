@@ -181,76 +181,80 @@ const FS = (() => {
     const bumpOpenCount = d => { if (d.verdict !== 'legit') setOpenCount(openCount + 1); };
 
     // ------------------------------------------------------------ shell
-    const NAV = [
-        { section: 'Operations' },
-        { id: 'overview', href: '/dashboard.html', label: 'Overview', icon: 'overview' },
-        { id: 'investigate', href: '/analyzer.html', label: 'Investigate', icon: 'search' },
-        { id: 'detections', href: '/detections.html', label: 'Detections', icon: 'alert', badge: true },
-        { section: 'Configuration' },
-        { id: 'integrations', href: '/integrations.html', label: 'Integrations', icon: 'plug' },
-        { id: 'reports', href: '/weekly-summary.html', label: 'Reports', icon: 'report' },
-        { id: 'settings', href: '/profile.html', label: 'Settings', icon: 'settings' },
-    ];
 
     function initials(name) {
         return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
     }
 
+    // Top navigation shared by every console page (minimal light design).
+    const PRIMARY = [
+        { id: 'overview', href: '/dashboard.html', label: 'Overview' },
+        { id: 'investigate', href: '/analyzer.html', label: 'Investigate' },
+        { id: 'detections', href: '/detections.html', label: 'Detections', badge: true },
+        { id: 'integrations', href: '/integrations.html', label: 'Integrations' },
+    ];
+
     function buildShell() {
         const page = document.body.dataset.page;
         const main = document.querySelector('main');
-        const meta = NAV.find(n => n.id === page) || {};
         const u = user();
+        document.body.classList.add('light');
 
-        const shell = document.createElement('div');
-        shell.className = 'shell';
-        shell.innerHTML = `
-          <aside class="sidebar" id="sidebar">
-            <a class="brand" href="/dashboard.html" style="text-decoration:none;color:inherit">
-              ${icon('shield', 'brand-mark')}
-              <div><div class="brand-name">FraudShield</div><div class="brand-sub">Security Operations</div></div>
-            </a>
-            <nav class="nav" aria-label="Primary">
-              ${NAV.map(n => n.section ? `<div class="nav-label">${n.section}</div>` :
-                `<a href="${n.href}" class="${n.id === page ? 'active' : ''}" ${n.id === page ? 'aria-current="page"' : ''}>${icon(n.icon)}${n.label}${n.badge ? '<span class="count hidden" id="nav-open-count"></span>' : ''}</a>`).join('')}
+        const chrome = document.createElement('div');
+        chrome.innerHTML = `
+          <div id="banner-slot"></div>
+          <header class="ld-nav">
+            <button class="ld-workspace" id="ws-btn" type="button" aria-haspopup="true" aria-expanded="false">
+              <span class="ld-ws-avatar">${icon('shield')}</span>FraudShield SOC${icon('chevronsUpDown')}
+            </button>
+            <nav class="ld-links" aria-label="Primary">
+              ${PRIMARY.map(n => `<a href="${n.href}"${n.id === page ? ' class="active" aria-current="page"' : ''}>${n.label}${n.badge ? ' <span class="count hidden" id="nav-open-count"></span>' : ''}</a>`).join('')}
             </nav>
-            <div class="sidebar-foot"><div class="feed-state" id="feed-state"></div></div>
-          </aside>
-          <div class="main">
-            <header class="topbar">
-              <button class="btn btn-ghost btn-sm menu-btn" id="menu-btn" aria-label="Open navigation">${icon('menu')}</button>
-              <div><h1>${esc(meta.label || document.title)}</h1></div>
-              <span class="crumb">/ soc / ${esc(page || '')}</span>
-              <div class="topbar-right">
-                <span class="clock" id="clock"></span>
-                <button class="user-chip" id="user-chip" aria-haspopup="true" aria-expanded="false">
-                  <span class="avatar" id="topbar-avatar">${u.avatarUrl ? `<img src="${esc(u.avatarUrl)}" alt="">` : esc(initials(u.name))}</span>
-                  <span class="truncate" style="max-width:140px">${esc(u.name || 'Analyst')}</span>
-                </button>
-              </div>
-              <div class="user-menu hidden" id="user-menu" role="menu">
-                <div class="dim" style="padding:6px 10px 8px;font-size:12px">${esc(u.email || '')}</div>
-                <a href="/profile.html" role="menuitem">Settings</a>
-                <a href="/integrations.html" role="menuitem">Integrations</a>
-                <button id="logout-btn" role="menuitem">Sign out</button>
-              </div>
-            </header>
-          </div>`;
-        main.classList.add('content');
-        shell.querySelector('.main').appendChild(main);
-        document.body.prepend(shell);
+            <div class="ld-nav-right">
+              <form class="ld-search" id="search-form" role="search">
+                ${icon('search')}
+                <input type="search" name="q" placeholder="Search detections…" aria-label="Search detections" maxlength="100" autocomplete="off">
+              </form>
+              <span class="ld-live" id="feed-state"></span>
+              <button class="ld-avatar-btn" id="topbar-avatar" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
+                ${u.avatarUrl ? `<img src="${esc(u.avatarUrl)}" alt="">` : esc(initials(u.name))}
+              </button>
+            </div>
+            <div class="ld-menu ld-menu-ws hidden" id="ws-menu" role="menu">
+              <div class="ld-menu-label">Workspace</div>
+              <a href="/weekly-summary.html" role="menuitem">${icon('report')}Reports</a>
+              <a href="/integrations.html" role="menuitem">${icon('plug')}Sources &amp; integrations</a>
+              <a href="/profile.html" role="menuitem">${icon('settings')}Settings</a>
+            </div>
+            <div class="ld-menu ld-menu-user hidden" id="user-menu" role="menu">
+              <div class="ld-menu-label">${esc(u.email || u.name || '')}</div>
+              <a href="/profile.html" role="menuitem">${icon('user')}Profile &amp; security</a>
+              <button type="button" id="logout-btn" role="menuitem">${icon('logout')}Sign out</button>
+            </div>
+          </header>`;
+        document.body.prepend(...chrome.children);
+        main.classList.add('ld-page');
 
-        const clock = shell.querySelector('#clock');
-        const tick = () => { clock.textContent = new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC'; };
-        tick(); setInterval(tick, 1000);
-
-        const chip = shell.querySelector('#user-chip');
-        const menu = shell.querySelector('#user-menu');
-        chip.addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('hidden'); chip.setAttribute('aria-expanded', !menu.classList.contains('hidden')); });
-        document.addEventListener('click', () => menu.classList.add('hidden'));
-        shell.querySelector('#logout-btn').addEventListener('click', logout);
-        shell.querySelector('#menu-btn').addEventListener('click', e => { e.stopPropagation(); shell.querySelector('#sidebar').classList.toggle('open'); });
-        document.addEventListener('click', e => { if (!e.target.closest('#sidebar')) shell.querySelector('#sidebar').classList.remove('open'); });
+        // Menus: one open at a time; close on outside click or Escape.
+        const menus = [[document.getElementById('ws-btn'), document.getElementById('ws-menu')],
+            [document.getElementById('topbar-avatar'), document.getElementById('user-menu')]];
+        const closeMenus = () => menus.forEach(([b, m]) => { m.classList.add('hidden'); b.setAttribute('aria-expanded', 'false'); });
+        for (const [btn, menu] of menus) {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const open = menu.classList.contains('hidden');
+                closeMenus();
+                if (open) { menu.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); }
+            });
+        }
+        document.addEventListener('click', closeMenus);
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
+        document.getElementById('logout-btn').addEventListener('click', logout);
+        document.getElementById('search-form').addEventListener('submit', e => {
+            e.preventDefault();
+            const q = e.target.q.value.trim();
+            location.href = q ? `/detections.html?q=${encodeURIComponent(q)}` : '/detections.html';
+        });
         renderFeedState();
     }
 
@@ -293,7 +297,7 @@ const FS = (() => {
      * dismissal is remembered in this browser (convenience only).
      */
     function banner({ id, message, variant = 'normal', height = '2.5rem', link, container } = {}) {
-        const main = container || document.querySelector('.shell .main');
+        const main = container || document.getElementById('banner-slot');
         if (!main || !message) return null;
         const key = id ? `banner-${id}` : null;
         try { if (key && localStorage.getItem(key) === 'true') return null; } catch { /* storage unavailable */ }

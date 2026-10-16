@@ -8,47 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/console.css">
-  <link rel="stylesheet" href="css/dashboard-light.css">
+  <link rel="stylesheet" href="css/light.css">
 </head>
 <body class="light" data-page="overview">
-  <div id="banner-slot"></div>
-
-  <header class="ld-nav">
-    <button class="ld-workspace" id="ws-btn" type="button" aria-haspopup="true" aria-expanded="false">
-      <span class="ld-ws-avatar" data-icon="shield"></span>
-      FraudShield SOC
-      <span data-icon="chevronsUpDown"></span>
-    </button>
-
-    <nav class="ld-links" aria-label="Primary">
-      <a href="/dashboard.html" class="active" aria-current="page">Overview</a>
-      <a href="/analyzer.html">Investigate</a>
-      <a href="/detections.html">Detections <span class="count hidden" id="nav-open-count"></span></a>
-      <a href="/integrations.html">Integrations</a>
-    </nav>
-
-    <div class="ld-nav-right">
-      <form class="ld-search" id="search-form" role="search">
-        <span data-icon="search"></span>
-        <input type="search" name="q" placeholder="Search detections…" aria-label="Search detections" maxlength="100" autocomplete="off">
-      </form>
-      <span class="ld-live" id="feed-state"></span>
-      <button class="ld-avatar-btn" id="user-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu"></button>
-    </div>
-
-    <div class="ld-menu ld-menu-ws hidden" id="ws-menu" role="menu">
-      <div class="ld-menu-label">Workspace</div>
-      <a href="/weekly-summary.html" role="menuitem"><span data-icon="report"></span>Reports</a>
-      <a href="/integrations.html" role="menuitem"><span data-icon="plug"></span>Sources &amp; integrations</a>
-      <a href="/profile.html" role="menuitem"><span data-icon="settings"></span>Settings</a>
-    </div>
-    <div class="ld-menu ld-menu-user hidden" id="user-menu" role="menu">
-      <div class="ld-menu-label" id="user-menu-label"></div>
-      <a href="/profile.html" role="menuitem"><span data-icon="user"></span>Profile &amp; security</a>
-      <button type="button" id="logout-btn" role="menuitem"><span data-icon="logout"></span>Sign out</button>
-    </div>
-  </header>
-
   <main class="ld-page">
     <div class="ld-header">
       <h1>Dashboard</h1>

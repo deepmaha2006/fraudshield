@@ -2,53 +2,12 @@
 // Everything rendered from detections is attacker-controlled: always esc()/defang().
 
 (async () => {
-    if (!(await FS.init({ shell: false }))) return;
+    if (!(await FS.init())) return;
     const { esc, icon, timeAgo, fmtNum, defang, SOURCES } = FS;
     const $ = id => document.getElementById(id);
 
-    // ------------------------------------------------------------ static chrome
-    document.querySelectorAll('[data-icon]').forEach(el => {
-        // Wrappers with a class keep their box (e.g. the workspace avatar); bare spans become the icon.
-        if (el.className) el.innerHTML = icon(el.dataset.icon);
-        else el.outerHTML = icon(el.dataset.icon);
-    });
-
-    const u = FS.user();
-    const userBtn = $('user-btn');
-    if (u.avatarUrl) {
-        const img = document.createElement('img');
-        img.src = u.avatarUrl;
-        img.alt = '';
-        userBtn.appendChild(img);
-    } else {
-        userBtn.textContent = FS.initials(u.name);
-    }
-    $('user-menu-label').textContent = u.email || u.name || '';
-
-    // Menus (workspace + account): one open at a time, close on outside click / Escape.
-    const menus = [[$('ws-btn'), $('ws-menu')], [userBtn, $('user-menu')]];
-    const closeMenus = () => menus.forEach(([b, m]) => { m.classList.add('hidden'); b.setAttribute('aria-expanded', 'false'); });
-    for (const [btn, menu] of menus) {
-        btn.addEventListener('click', e => {
-            e.stopPropagation();
-            const open = menu.classList.contains('hidden');
-            closeMenus();
-            if (open) { menu.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); }
-        });
-    }
-    document.addEventListener('click', closeMenus);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
-    $('logout-btn').addEventListener('click', () => FS.logout());
-
-    $('search-form').addEventListener('submit', e => {
-        e.preventDefault();
-        const q = e.target.q.value.trim();
-        location.href = q ? `/detections.html?q=${encodeURIComponent(q)}` : '/detections.html';
-    });
-
     FS.banner({
         id: 'release-2026-10-live-monitoring',
-        container: $('banner-slot'),
         height: '2.5rem',
         message: 'New: real-time Gmail & Android SMS monitoring — every link is analysed live, no blocklists.',
         link: { href: '/integrations.html', text: 'Connect a source →' },
