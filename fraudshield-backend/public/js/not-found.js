@@ -142,11 +142,14 @@
     let frame = 0;
     let rafId = 0;
 
+    // Visual only; uses the CSPRNG anyway so no weak-random pattern exists in the codebase.
+    const random = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+
     function initCircles() {
         circles = [];
         for (let i = 0; i < 300; i++) {
-            const x = Math.floor(Math.random() * (canvas.width * 3 - canvas.width * 1.2 + 1)) + canvas.width * 1.2;
-            const y = Math.floor(Math.random() * (canvas.height - (canvas.height * -0.2 + 1))) + canvas.height * -0.2;
+            const x = Math.floor(random() * (canvas.width * 3 - canvas.width * 1.2 + 1)) + canvas.width * 1.2;
+            const y = Math.floor(random() * (canvas.height - (canvas.height * -0.2 + 1))) + canvas.height * -0.2;
             circles.push({ x, y, size: canvas.width / 1000 });
         }
     }
