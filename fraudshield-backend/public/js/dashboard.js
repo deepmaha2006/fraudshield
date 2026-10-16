@@ -8,6 +8,14 @@
 
     $('investigate-btn').innerHTML = `${icon('search')}Investigate URL / message`;
 
+    FS.banner({
+        id: 'release-2026-10-live-monitoring', // change the id to show a new announcement to everyone
+        variant: 'rainbow',
+        height: '2.5rem',
+        message: '🎉 New: real-time Gmail & Android SMS monitoring — every link is analysed live, no blocklists.',
+        link: { href: '/integrations.html', text: 'Connect a source →' },
+    });
+
     let chart;
     const VERDICTS = [['legit', 'Legit', '--legit'], ['suspicious', 'Suspicious', '--suspicious'], ['malicious', 'Malicious', '--malicious']];
 

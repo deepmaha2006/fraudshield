@@ -277,7 +277,61 @@ const FS = (() => {
         catch { toast('Clipboard unavailable', 'error'); }
     }
 
+    // ------------------------------------------------------------ announcement banner
+    /**
+     * Sticky banner above the topbar (port of the shadcn Banner: 'normal' | 'rainbow').
+     * Text is set with textContent and links must be same-origin paths, so a
+     * banner can never inject markup or send users off-site. With an `id`, a
+     * dismissal is remembered in this browser (convenience only).
+     */
+    function banner({ id, message, variant = 'normal', height = '2.5rem', link } = {}) {
+        const main = document.querySelector('.shell .main');
+        if (!main || !message) return null;
+        const key = id ? `banner-${id}` : null;
+        try { if (key && localStorage.getItem(key) === 'true') return null; } catch { /* storage unavailable */ }
+
+        const el = document.createElement('div');
+        el.className = `fs-banner${variant === 'rainbow' ? ' rainbow' : ''}`;
+        el.setAttribute('role', 'region');
+        el.setAttribute('aria-label', 'Announcement');
+        el.style.height = height;
+        if (variant === 'rainbow') {
+            for (const n of [1, 2]) {
+                const layer = document.createElement('div');
+                layer.className = `fs-banner-layer rainbow-banner-gradient-${n}`;
+                el.appendChild(layer);
+            }
+        }
+        const text = document.createElement('span');
+        text.className = 'fs-banner-text';
+        text.textContent = message;
+        el.appendChild(text);
+        if (link && typeof link.href === 'string' && /^\/(?!\/)/.test(link.href)) {
+            const a = document.createElement('a');
+            a.href = link.href;
+            a.textContent = link.text || 'Learn more';
+            el.appendChild(a);
+        }
+        if (key) {
+            const close = document.createElement('button');
+            close.type = 'button';
+            close.className = 'fs-banner-close';
+            close.setAttribute('aria-label', 'Close banner');
+            close.innerHTML = icon('x'); // static icon markup, no user data
+            close.addEventListener('click', () => {
+                el.remove();
+                document.documentElement.style.removeProperty('--banner-height');
+                try { localStorage.setItem(key, 'true'); } catch { /* storage unavailable */ }
+            });
+            el.appendChild(close);
+        }
+        main.prepend(el);
+        document.documentElement.style.setProperty('--banner-height', height); // keeps the sticky topbar below it
+        return el;
+    }
+
     return {
+        banner,
         icon, esc, defang, verdictBadge, riskBar, riskColor, sourceLabel, timeAgo, fmtTime, fmtNum,
         api, toast, on, init, user, updateUser, logout, download, copy, initials,
         VERDICT_COLOR, VERDICT_LABEL, SOURCES, STATUS_LABEL, setOpenCount,
