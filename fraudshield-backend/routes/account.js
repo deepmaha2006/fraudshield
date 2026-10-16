@@ -72,7 +72,7 @@ router.post('/register', authLimiter, validate({
         log.security('account.registered', { rid: req.id, ip: req.ip, uid: userId, level: 'info' });
         await issueVerification({ id: userId, full_name: fullName, email }, req);
     } catch (err) {
-        if (!/UNIQUE/.test(err.message)) throw err;
+        if (!/UNIQUE/.test(err.message) && err.code !== '23505') throw err; // SQLite / PostgreSQL unique violation
         // Same response as success: registration must not reveal which e-mails exist.
         log.security('account.register_duplicate', { rid: req.id, ip: req.ip, level: 'info' });
     }

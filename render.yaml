@@ -1,8 +1,8 @@
 # Render blueprint — FraudShield SOC on the free plan.
 #
-# Free web services have no persistent disk, so the database is a hosted libSQL
-# (Turso) database and profile pictures are stored in it. Secrets are entered in
-# the Render dashboard (sync: false) and never committed.
+# Free web services have no persistent disk, so the database is a hosted
+# PostgreSQL (Supabase) database and profile pictures are stored in it. Secrets
+# are entered in the Render dashboard (sync: false) and never committed.
 services:
   - type: web
     name: fraudshield
@@ -31,7 +31,7 @@ services:
         sync: false
       - key: DATA_ENCRYPTION_KEY   # 64 hex chars; never change once Gmail is connected
         sync: false
-      - key: DATABASE_URL          # libsql://<db>-<org>.turso.io
-        sync: false
-      - key: DATABASE_AUTH_TOKEN   # turso db tokens create <db>
+      # Supabase session pooler (IPv4; Render has no IPv6 egress), TLS verified against certs/supabase-ca.crt:
+      # postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+      - key: DATABASE_URL
         sync: false

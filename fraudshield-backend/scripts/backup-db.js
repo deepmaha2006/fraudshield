@@ -20,7 +20,7 @@ const dir = path.resolve(opt('--dir', process.env.BACKUP_DIR || path.join(__dirn
 const keep = Number(opt('--keep', process.env.BACKUP_KEEP || 14));
 const dbPath = path.resolve(__dirname, '..', config.dbFile);
 if (config.dbUrl) {
-    console.error('DATABASE_URL points at a remote libSQL database: use the provider backups instead (e.g. `turso db shell <db> .dump`, point-in-time restore).');
+    console.error('DATABASE_URL points at a remote database: use the provider backups instead (Supabase: daily backups / pg_dump; Turso: `turso db shell <db> .dump`).');
     process.exit(1);
 }
 

@@ -12,6 +12,7 @@ Generated 2026-10-16 from `fraudshield-backend/package-lock.json` (npm 12.0.2, N
 | dotenv | 17.2.2 | `.env` loading (development) | — |
 | bcryptjs | 3.0.2 | Password / document-number hashing (pure JS) | — |
 | @libsql/client | 0.17.4 | Database driver (local file or hosted Turso; prebuilt native binaries, no install script) | not needed |
+| pg | 8.23.1 | PostgreSQL driver for hosted Supabase (pure JS) | — |
 | multer | 2.4.0 | Multipart uploads | — |
 | nodemailer | 10.1.1 | Outbound e-mail | — |
 | imapflow | 2.5.0 | Gmail IMAP IDLE client | — |

@@ -1,6 +1,6 @@
 # FraudShield — Secure Deployment Guide
 
-FraudShield is a single Node.js process with a SQLite-compatible (libSQL) database — a local file, or a hosted Turso database on platforms without a persistent disk (see §10, Render). It is designed for **one instance per database** behind a **TLS-terminating reverse proxy**. Nothing here has been deployed to a production host yet — follow this guide and complete the release checklist (§9) before going live.
+FraudShield is a single Node.js process with a SQLite-compatible (libSQL) database — a local file — or, on platforms without a persistent disk, a hosted PostgreSQL (Supabase) or Turso database (see §10, Render). It is designed for **one instance per database** behind a **TLS-terminating reverse proxy**. Nothing here has been deployed to a production host yet — follow this guide and complete the release checklist (§9) before going live.
 
 ## 1. Requirements
 
@@ -183,8 +183,8 @@ SQLite + in-process rate limits + in-process Gmail watchers mean **one instance*
 
 `render.yaml` at the repository root describes the service: Docker build of `fraudshield-backend/`, free plan, health check `/healthz`.
 
-- **Database:** free Render services have no persistent disk, so set `DATABASE_URL` + `DATABASE_AUTH_TOKEN` to a Turso database (`turso db create fraudshield`, `turso db show --url fraudshield`, `turso db tokens create fraudshield`). Migrations run on start. Backups: Turso point-in-time restore / `turso db shell fraudshield .dump` (the `db:backup` script is for local files only).
+- **Database:** free Render services have no persistent disk, so `DATABASE_URL` points at Supabase PostgreSQL through the **session pooler** (`aws-0-<region>.pooler.supabase.com:5432`, IPv4 — the direct `db.<ref>.supabase.co` host is IPv6-only). TLS is verified against Supabase's root CA (`certs/supabase-ca.crt`). Tables are created in the `fraudshield` schema (`DATABASE_SCHEMA`), not `public`, and the schema is revoked from the `anon`/`authenticated` roles, so the project's Data API and anon key cannot read application data. Migrations run on start. Backups: Supabase daily backups / `pg_dump --schema=fraudshield` (the `db:backup` script is for local files only). A Turso `libsql://` URL + `DATABASE_AUTH_TOKEN` still works.
 - **Proxy:** `TRUST_PROXY=1` — Render's load balancer is the one hop that sets `X-Forwarded-For`.
 - **Mail:** Render free services block outbound SMTP (25/465/587), so `MAIL_TRANSPORT=disabled`; alert, verification and password-reset e-mails are not sent. Use a paid instance or an HTTP mail API to enable them.
 - **Sleep:** free services stop after 15 minutes without inbound requests and take ~1 minute to wake. While asleep the Gmail IMAP watcher is not running (it resumes from the last processed message on wake) and the first SMS forwarded may time out and be retried by the phone. Free instance hours (750/month) are shared by all free services in the workspace.
-- **Secrets:** set `DATA_ENCRYPTION_KEY`, `DATABASE_AUTH_TOKEN` in the dashboard (never in `render.yaml`). Do not change `DATA_ENCRYPTION_KEY` after users connect Gmail.
+- **Secrets:** set `DATA_ENCRYPTION_KEY`, `DATABASE_URL` (contains the database password) in the dashboard (never in `render.yaml`). Do not change `DATA_ENCRYPTION_KEY` after users connect Gmail.

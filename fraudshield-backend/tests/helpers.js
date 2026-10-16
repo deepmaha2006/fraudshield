@@ -21,6 +21,11 @@ Object.assign(process.env, {
     // Every test client is 127.0.0.1; scale per-IP limits (ratelimit.test.js runs at the real scale of 1).
     RATE_LIMIT_SCALE: process.env.RATE_LIMIT_SCALE || '100',
 });
+// TEST_DATABASE_URL=postgres://… runs the suite against PostgreSQL in a throwaway schema.
+if (process.env.TEST_DATABASE_URL) {
+    process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+    process.env.DATABASE_SCHEMA = `fs_test_${crypto.randomBytes(6).toString('hex')}`;
+} else delete process.env.DATABASE_URL;
 for (const k of ['EMAIL_USER', 'EMAIL_APP_PASSWORD', 'SMTP_HOST', 'PUBLIC_BASE_URL', 'TRUST_PROXY']) delete process.env[k];
 
 const db = require('../db');

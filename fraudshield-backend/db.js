@@ -1,9 +1,10 @@
 // db.js — database access: promise helpers, safe transactions, versioned
 // migrations, retention housekeeping.
 //
-// Backed by libSQL (SQLite-compatible). Two modes, same SQL:
+// Three modes, one set of (SQLite-flavoured) SQL:
 //   * local file  (DB_FILE)                         — development, tests, single-host installs
 //   * remote      (DATABASE_URL + DATABASE_AUTH_TOKEN, e.g. Turso) — hosts without a persistent disk
+//   * PostgreSQL  (DATABASE_URL=postgres://…, e.g. Supabase) — statements are translated by lib/pg.js
 
 const { createClient } = require('@libsql/client');
 const fs = require('fs');
@@ -11,11 +12,14 @@ const path = require('path');
 const { AsyncLocalStorage } = require('async_hooks');
 const config = require('./lib/config');
 
+const PG = /^postgres(ql)?:\/\//i.test(config.dbUrl);
 const REMOTE = Boolean(config.dbUrl);
 const DB_PATH = REMOTE ? null : config.dbFile === ':memory:' ? ':memory:' : path.resolve(__dirname, config.dbFile);
-const client = REMOTE
+const pg = PG ? require('./lib/pg') : null;
+const client = PG ? null : REMOTE
     ? createClient({ url: config.dbUrl, authToken: config.dbAuthToken })
     : createClient({ url: DB_PATH === ':memory:' ? ':memory:' : `file:${DB_PATH}` });
+const pool = PG ? pg.createPool(config) : null;
 
 // One client is shared by every request. While a transaction is open, any
 // statement issued outside it must wait, so writes from different requests
@@ -34,6 +38,11 @@ async function waitTurn() {
 const bind = params => Array.isArray(params) ? params.map(v => v === undefined ? null : v) : params;
 async function execute(sql, params = []) {
     const t = txContext.getStore();
+    if (PG) {
+        const q = pg.translate(sql);
+        const r = await (t || pool).query({ text: q.text, values: bind(params), rowMode: 'array' });
+        return { columns: r.fields.map(f => f.name), rows: r.rows, rowsAffected: r.rowCount, lastInsertRowid: q.returnsId ? r.rows[0]?.[r.fields.findIndex(f => f.name === 'id')] : undefined };
+    }
     if (!t) await waitTurn();
     return (t || client).execute({ sql, args: bind(params) });
 }
@@ -55,6 +64,21 @@ const all = async (sql, params = []) => {
 /** Run fn() atomically. Nested calls join the outer transaction. */
 async function tx(fn) {
     if (txContext.getStore()) return fn();
+    if (PG) {
+        // The pool hands each transaction its own connection, so no global lock is needed.
+        const conn = await pool.connect();
+        try {
+            await conn.query('BEGIN');
+            const result = await txContext.run(conn, fn);
+            await conn.query('COMMIT');
+            return result;
+        } catch (err) {
+            await conn.query('ROLLBACK').catch(() => {});
+            throw err;
+        } finally {
+            conn.release();
+        }
+    }
     // Inline (not `await waitTurn()`): the lock must be taken in the same tick the wait ends.
     for (;;) {
         const current = lock;
@@ -252,8 +276,8 @@ const MIGRATIONS = [
     },
 ];
 
-if (MIGRATIONS.length !== require('./lib/schema').SCHEMA_VERSION) {
-    throw new Error('lib/schema.js SCHEMA_VERSION must equal the number of migrations in db.js');
+if (MIGRATIONS.length !== require('./lib/schema').SCHEMA_VERSION || (PG && pg.MIGRATIONS.length !== MIGRATIONS.length)) {
+    throw new Error('lib/schema.js SCHEMA_VERSION must equal the number of migrations in db.js and lib/pg.js');
 }
 
 // The schema version lives in a table rather than PRAGMA user_version, which
@@ -263,12 +287,14 @@ async function schemaVersion() {
     await run('CREATE TABLE IF NOT EXISTS schema_meta (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)');
     const row = await get('SELECT version FROM schema_meta WHERE id = 1');
     if (row) return row.version;
+    if (PG) { await run('INSERT INTO schema_meta (id, version) VALUES (1, 0)'); return 0; }
     const legacy = await get('PRAGMA user_version').then(r => r?.user_version || 0).catch(() => 0);
     await run('INSERT INTO schema_meta (id, version) VALUES (1, ?)', [legacy]);
     return legacy;
 }
 
 async function migrate() {
+    if (PG) await pg.prepareSchema(pool);
     if (!REMOTE) {
         await run('PRAGMA busy_timeout = 5000');
         await run('PRAGMA foreign_keys = ON');
@@ -278,7 +304,7 @@ async function migrate() {
     const from = await schemaVersion();
     for (let v = from; v < MIGRATIONS.length; v++) {
         await tx(async () => {
-            await MIGRATIONS[v]();
+            await (PG ? pg.MIGRATIONS[v](run) : MIGRATIONS[v]());
             await run('UPDATE schema_meta SET version = ? WHERE id = 1', [v + 1]);
         });
     }
@@ -295,7 +321,7 @@ function restrictFilePermissions() {
     }
 }
 
-const integrityCheck = async () => (await get('PRAGMA quick_check')).quick_check === 'ok';
+const integrityCheck = async () => PG ? (await get('SELECT 1 AS ok'))?.ok === 1 : (await get('PRAGMA quick_check')).quick_check === 'ok';
 
 /** Data-retention housekeeping; idempotent. */
 async function purgeExpired() {
@@ -312,7 +338,8 @@ let closed = false;
 async function close() {
     if (closed) return;
     closed = true;
-    client.close();
+    if (PG) await pool.end();
+    else client.close();
 }
 
-module.exports = { client, run, get, all, tx, migrate, integrityCheck, purgeExpired, close, REMOTE, DB_PATH, MIGRATIONS };
+module.exports = { client, run, get, all, tx, migrate, integrityCheck, purgeExpired, close, REMOTE, PG, DB_PATH, MIGRATIONS };

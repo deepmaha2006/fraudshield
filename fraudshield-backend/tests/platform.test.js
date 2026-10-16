@@ -17,7 +17,7 @@ test('migrations are versioned and idempotent', async () => {
     assert.equal(again.from, db.MIGRATIONS.length);
     assert.equal(again.to, db.MIGRATIONS.length);
     assert.equal((await db.get('SELECT version FROM schema_meta WHERE id = 1')).version, db.MIGRATIONS.length);
-    assert.equal((await db.get('PRAGMA foreign_keys')).foreign_keys, 1);
+    if (!db.PG) assert.equal((await db.get('PRAGMA foreign_keys')).foreign_keys, 1);
     assert.equal(await db.integrityCheck(), true);
 });
 

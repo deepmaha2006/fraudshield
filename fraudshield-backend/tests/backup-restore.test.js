@@ -12,7 +12,7 @@ const run = (script, args) => execFileSync(process.execPath, [path.join(__dirnam
 before(async () => { await db.migrate(); });
 after(async () => { await db.close().catch(() => {}); });
 
-test('backup is consistent, verified, and restorable', async () => {
+test('backup is consistent, verified, and restorable', { skip: db.PG && 'file backups are SQLite-only; PostgreSQL uses provider backups' }, async () => {
     await db.run("INSERT INTO users (full_name, email) VALUES ('Backup Me', 'backup@example.test')");
     const out = JSON.parse(run('backup-db.js', ['--dir', backupDir]));
     assert.equal(out.integrity, 'ok');
@@ -39,7 +39,7 @@ test('backup is consistent, verified, and restorable', async () => {
     assert.equal(rows[0]?.email, 'backup@example.test');
 });
 
-test('restore rejects a tampered backup', () => {
+test('restore rejects a tampered backup', { skip: db.PG && 'SQLite-only' }, () => {
     const file = fs.readdirSync(backupDir).find(f => f.endsWith('.db'));
     const p = path.join(backupDir, file);
     fs.appendFileSync(p, Buffer.from('tamper'));

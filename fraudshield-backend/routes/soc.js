@@ -194,9 +194,9 @@ router.get('/overview', async (req, res) => {
     const since24 = daysAgoIso(1);
     const since7 = daysAgoIso(7);
     const [k24, k7, open, rows7, recent, gmailRow, devices] = await Promise.all([
-        get(`SELECT COUNT(*) total, SUM(verdict='malicious') malicious, SUM(verdict='suspicious') suspicious, SUM(verdict='legit') legit
+        get(`SELECT COUNT(*) total, SUM(CASE WHEN verdict = 'malicious' THEN 1 ELSE 0 END) malicious, SUM(CASE WHEN verdict = 'suspicious' THEN 1 ELSE 0 END) suspicious, SUM(CASE WHEN verdict = 'legit' THEN 1 ELSE 0 END) legit
              FROM detections WHERE user_id = ? AND created_at >= ?`, [uid, since24]),
-        get(`SELECT COUNT(*) total, SUM(verdict='malicious') malicious, AVG(confidence) confidence FROM detections WHERE user_id = ? AND created_at >= ?`, [uid, since7]),
+        get(`SELECT COUNT(*) total, SUM(CASE WHEN verdict = 'malicious' THEN 1 ELSE 0 END) malicious, AVG(confidence) confidence FROM detections WHERE user_id = ? AND created_at >= ?`, [uid, since7]),
         get(`SELECT COUNT(*) n FROM detections WHERE user_id = ? AND status = 'open' AND verdict != 'legit'`, [uid]),
         all('SELECT verdict, source, target, report, created_at FROM detections WHERE user_id = ? AND created_at >= ? ORDER BY id DESC LIMIT 1000', [uid, since7]),
         all(`SELECT id, source, kind, sender, subject, target, risk, verdict, confidence, summary, status, created_at
