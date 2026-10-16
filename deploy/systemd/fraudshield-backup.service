@@ -1,0 +1,18 @@
+# /etc/systemd/system/fraudshield-backup.service — run by fraudshield-backup.timer
+[Unit]
+Description=FraudShield database backup
+
+[Service]
+Type=oneshot
+User=fraudshield
+Group=fraudshield
+WorkingDirectory=/opt/fraudshield/fraudshield-backend
+EnvironmentFile=/etc/fraudshield/fraudshield.env
+Environment=NODE_ENV=production DB_FILE=/var/lib/fraudshield/fraudshield.db BACKUP_DIR=/var/backups/fraudshield BACKUP_KEEP=14
+ExecStart=/usr/bin/node scripts/backup-db.js
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0077
+ReadWritePaths=/var/lib/fraudshield /var/backups/fraudshield

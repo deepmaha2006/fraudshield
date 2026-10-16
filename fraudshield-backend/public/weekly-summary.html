@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports · FraudShield SOC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/console.css">
+</head>
+<body data-page="reports">
+  <main>
+    <div class="page-head">
+      <div>
+        <h2>Threat report</h2>
+        <p id="period"></p>
+      </div>
+      <div class="row no-print">
+        <select class="select" id="days" style="width:auto" aria-label="Reporting period">
+          <option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option>
+        </select>
+        <button class="btn" id="print-btn"></button>
+      </div>
+    </div>
+
+    <section class="grid grid-kpi" id="kpis"></section>
+
+    <section class="grid grid-2" style="margin-top:16px">
+      <div class="panel">
+        <div class="panel-head"><h3>Daily volume</h3><span class="sub">by verdict</span><div class="actions legend" id="legend"></div></div>
+        <div class="panel-body"><div class="chart-box"><canvas id="daily" aria-label="Detections per day by verdict"></canvas></div>
+          <details style="margin-top:10px"><summary class="dim" style="cursor:pointer;font-size:12px">Table view</summary><div id="daily-table" class="table-wrap"></div></details></div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="panel"><div class="panel-head"><h3>By source</h3></div><div class="panel-body"><div class="hbars" id="sources"></div></div></div>
+        <div class="panel"><div class="panel-head"><h3>Triage status</h3></div><div class="panel-body"><div class="hbars" id="statuses"></div></div></div>
+      </div>
+    </section>
+
+    <section class="grid grid-halves" style="margin-top:16px">
+      <div class="panel"><div class="panel-head"><h3>Most frequent attack indicators</h3></div><div class="panel-body"><div class="hbars" id="indicators"></div></div></div>
+      <div class="panel">
+        <div class="panel-head"><h3>Malicious items</h3><span class="sub">latest 20</span></div>
+        <div class="table-wrap"><table class="data"><thead><tr><th>Time</th><th>Source</th><th>Item</th><th>Risk</th></tr></thead><tbody id="high"></tbody></table></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="drawer-root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="js/core.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/drawer.js"></script>
+  <script src="js/weekly-summary.js"></script>
+</body>
+</html>

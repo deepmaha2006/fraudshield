@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detections · FraudShield SOC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/console.css">
+</head>
+<body data-page="detections">
+  <main>
+    <div class="page-head">
+      <div>
+        <h2>Detection queue</h2>
+        <p>Every message and link analysed across all sources. Open an item for the full evidence trail and triage it.</p>
+      </div>
+      <button class="btn" id="export-btn"></button>
+    </div>
+
+    <section class="panel">
+      <form class="panel-head" id="filters" style="flex-wrap:wrap">
+        <input class="input" name="q" type="search" placeholder="Search sender, subject, URL…" style="max-width:280px" maxlength="100">
+        <select class="select" name="verdict" style="width:auto">
+          <option value="">All verdicts</option><option value="malicious">Malicious</option><option value="suspicious">Suspicious</option><option value="legit">Legit</option>
+        </select>
+        <select class="select" name="source" style="width:auto">
+          <option value="">All sources</option><option value="gmail">Gmail</option><option value="sms">Android SMS</option><option value="manual">Manual</option><option value="screenshot">Screenshot</option>
+        </select>
+        <select class="select" name="status" style="width:auto">
+          <option value="">Any status</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="resolved">Resolved</option><option value="false_positive">False positive</option>
+        </select>
+        <div class="actions"><span class="sub" id="count"></span></div>
+      </form>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>#</th><th>Time</th><th>Source</th><th>Item</th><th>Verdict</th><th>Risk</th><th>Status</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span id="page-info"></span>
+        <div class="row"><button class="btn btn-sm" id="prev">Previous</button><button class="btn btn-sm" id="next">Next</button></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="drawer-root"></div>
+  <script src="js/core.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/drawer.js"></script>
+  <script src="js/detections.js"></script>
+</body>
+</html>

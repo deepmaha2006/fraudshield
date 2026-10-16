@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  RELEASE builds: HTTPS only. Device tokens and SMS content must never cross
+  the network in clear text. Point the app at PUBLIC_BASE_URL (https://…).
+  DEBUG builds override this file (src/debug/res/xml) to allow http:// to a
+  development laptop on the same Wi-Fi.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integrations · FraudShield SOC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/console.css">
+</head>
+<body data-page="integrations">
+  <main>
+    <div class="page-head">
+      <div>
+        <h2>Integrations</h2>
+        <p>Connect the channels attackers use. New messages are analysed the moment they arrive and stream into the console.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-halves">
+      <!-- Gmail -->
+      <section class="panel">
+        <div class="panel-head"><span data-icon="mail"></span><h3>Gmail inbox</h3><span class="sub">IMAP IDLE push · real time</span>
+          <div class="actions row" id="gmail-state"></div></div>
+        <div class="panel-body stack" id="gmail-body"></div>
+      </section>
+
+      <!-- Android -->
+      <section class="panel">
+        <div class="panel-head"><span data-icon="phone"></span><h3>Android SMS</h3><span class="sub">paired devices push every SMS</span></div>
+        <div class="panel-body stack">
+          <form class="row" id="pair-form" style="flex-wrap:nowrap">
+            <input class="input" name="name" placeholder="Device name, e.g. Riya's Pixel 8" maxlength="60" required>
+            <button class="btn btn-primary" type="submit">Pair device</button>
+          </form>
+          <div id="pair-result" class="hidden"></div>
+          <div class="table-wrap"><table class="data"><thead><tr><th>Device</th><th>SMS scanned</th><th>Last seen</th><th></th></tr></thead><tbody id="devices"></tbody></table></div>
+          <details>
+            <summary style="cursor:pointer;font-weight:500">How to connect a phone</summary>
+            <ol class="steps" style="margin-top:8px">
+              <li>Install the <b>FraudShield Android companion</b> (source in <span class="mono">android-companion/</span> — open it in Android Studio and press Run).</li>
+              <li>Pair a device here and enter the <b>server URL</b> and <b>device token</b> in the app. The phone must reach this server: same Wi-Fi, or set <span class="mono">PUBLIC_BASE_URL</span> to a tunnel / public host.</li>
+              <li>Grant the SMS permission. Each incoming SMS is sent to <span class="mono">POST /api/ingest/sms</span>, analysed live, and a notification warns on scams.</li>
+              <li>Alternatively, any SMS-forwarder app that can POST JSON with header <span class="mono">Authorization: Device &lt;token&gt;</span> and fields <span class="mono">sender</span>, <span class="mono">body</span> works too.</li>
+            </ol>
+          </details>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-head"><span data-icon="bolt"></span><h3>Live event stream</h3><span class="sub">integration status changes in this session</span></div>
+      <div class="panel-body"><ol class="chain" id="events"><li class="dim">Waiting for events…</li></ol></div>
+    </section>
+  </main>
+
+  <script src="js/core.js"></script>
+  <script src="js/integrations.js"></script>
+</body>
+</html>

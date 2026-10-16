@@ -1,0 +1,47 @@
+{
+  "name": "fraudshield-backend",
+  "version": "1.0.0",
+  "description": "FraudShield SOC — real-time phishing and scam detection for links, Gmail and Android SMS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test --test-concurrency=1 \"tests/*.test.js\"",
+    "audit": "npm audit --omit=dev --audit-level=moderate",
+    "sbom": "npm sbom --sbom-format cyclonedx --omit=dev > sbom.cdx.json",
+    "db:backup": "node scripts/backup-db.js",
+    "db:restore": "node scripts/restore-db.js",
+    "check:config": "node scripts/check-config.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "imapflow": "^2.5.0",
+    "mailparser": "^3.9.39",
+    "multer": "^2.0.2",
+    "nodemailer": "^10.1.1",
+    "sqlite3": "^6.0.1",
+    "tesseract.js": "^5.0.3",
+    "tldts": "^7.4.18"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "sqlite3@6.0.1": true,
+    "tesseract.js": false
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-security": "^3.0.1",
+    "globals": "^15.15.0"
+  }
+}

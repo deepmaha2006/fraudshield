@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0E13">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="FraudShield"
+            android:textColor="#DBE3EC"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:text="Real-time SMS scam detection"
+            android:textColor="#22C3E6"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Server URL (from Integrations → Pair device)"
+            android:textColor="#9AA8B8" />
+
+        <EditText
+            android:id="@+id/server"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="http://192.168.1.20:3000"
+            android:inputType="textUri"
+            android:textColor="#DBE3EC"
+            android:textColorHint="#6B7A8C" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Device token"
+            android:textColor="#9AA8B8" />
+
+        <EditText
+            android:id="@+id/token"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:hint="fsd_…"
+            android:inputType="textNoSuggestions|textVisiblePassword"
+            android:textColor="#DBE3EC"
+            android:textColorHint="#6B7A8C" />
+
+        <Button
+            android:id="@+id/save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Save, grant permissions &amp; test" />
+
+        <Button
+            android:id="@+id/test_sms"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Send a test message" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:fontFamily="monospace"
+            android:lineSpacingExtra="6dp"
+            android:textColor="#DBE3EC"
+            android:textSize="13sp" />
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overview · FraudShield SOC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/console.css">
+</head>
+<body data-page="overview">
+  <main>
+    <div class="page-head">
+      <div>
+        <h2>Security overview</h2>
+        <p>Live detections from Gmail, Android SMS and manual investigations. Updates as events arrive.</p>
+      </div>
+      <a class="btn btn-primary" href="/analyzer.html" id="investigate-btn"></a>
+    </div>
+
+    <section class="grid grid-kpi" id="kpis" aria-label="Key metrics"></section>
+
+    <section class="grid grid-2" style="margin-top:16px">
+      <div class="panel">
+        <div class="panel-head"><h3>Detections · last 7 days</h3><span class="sub">by verdict</span>
+          <div class="actions legend" id="timeline-legend"></div></div>
+        <div class="panel-body"><div class="chart-box"><canvas id="timeline" aria-label="Detections per day by verdict"></canvas></div>
+          <details style="margin-top:10px"><summary class="dim" style="cursor:pointer;font-size:12px">Table view</summary><div id="timeline-table" class="table-wrap"></div></details>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Monitoring coverage</h3><div class="actions"><a class="btn btn-sm" href="/integrations.html">Manage</a></div></div>
+        <div class="panel-body stack" id="coverage"></div>
+      </div>
+    </section>
+
+    <section class="grid grid-2" style="margin-top:16px">
+      <div class="panel">
+        <div class="panel-head"><h3>Live detection feed</h3><span class="sub" id="feed-sub">most recent first</span>
+          <div class="actions"><a class="btn btn-sm" href="/detections.html">Open queue</a></div></div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Time</th><th>Source</th><th>Item</th><th>Verdict</th><th>Risk</th></tr></thead>
+            <tbody id="feed"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="panel">
+          <div class="panel-head"><h3>Top indicators</h3><span class="sub">7d, non-legit</span></div>
+          <div class="panel-body"><div class="hbars" id="indicators"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Malicious hosts</h3><span class="sub">7d</span></div>
+          <div class="panel-body"><div class="hbars" id="hosts"></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="drawer-root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="js/core.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/drawer.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

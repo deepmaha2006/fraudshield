@@ -1,0 +1,141 @@
+FraudShield SOC — real-time phishing & scam detection
+=====================================================
+
+FraudShield decides whether a link, e-mail or SMS is legit or fraudulent by
+*measuring* it live — not by looking it up in a list. Every link is resolved,
+connected to, fetched and inspected; each observation becomes a weighted signal
+and the verdict is computed from those signals. Results stream into an
+analyst-style SOC console in real time.
+
+Sources
+  • Gmail inbox     IMAP IDLE push — each new e-mail is analysed the moment it lands
+  • Android SMS     companion app (android-companion/) forwards every incoming SMS
+  • Manual          paste a URL or message, or upload a screenshot (OCR, eng+hin)
+
+
+1. How a verdict is computed
+----------------------------
+engine/ (no blocklists, no keyword databases of domains)
+
+  lexical.js   URL structure: raw / decimal / hex IP hosts, "@" userinfo trick,
+               punycode + mixed-script homographs, brand domain embedded in a
+               subdomain (paypal.com.evil.xyz), deep subdomains, hyphen / digit
+               stuffing, random-looking (high-entropy) names, odd ports, plain
+               HTTP, open-redirect parameters, .apk/.exe payloads.
+  probe.js     DNS (resolution, NXDOMAIN, fast-flux TTLs, MX/SPF/DMARC),
+               TLS certificate (trust chain, host mismatch, self-signed,
+               expired, issued-hours-ago, organisation validated),
+               HTTP redirect chain followed hop by hop (cross-domain bounces,
+               HTTPS→HTTP downgrades, final landing page).
+  rdap.js      Live RDAP query to the authoritative registry (via the IANA
+               bootstrap): domain age, registry holds, unregistered domains.
+  content.js   What the landing page does: password / card / OTP / Aadhaar /
+               PAN fields, forms posting to another domain, page claiming a
+               brand it doesn't own, cloned assets, obfuscated JS, hidden
+               iframes, meta-refresh bounces, APK download lures.
+  index.js     Message analysis (urgency + credential requests, threats,
+               remote-access-app lures, SPF/DKIM/DMARC results, display-name
+               spoofing, Reply-To diversion, link text ≠ link target) and the
+               scoring model:
+                 risk  = noisy-OR of risk signals (many weak signals add up)
+                 trust = established domain, valid OV cert, DMARC... scale it down
+                 floor = critical signals can never be offset by trust
+               Verdict: ≥65 malicious · ≥30 suspicious · else legit.
+               Confidence = share of probe stages that completed.
+
+Security of the probe: every outbound connection is resolved once, checked
+against private / loopback / link-local ranges and pinned to that address
+(engine/netguard.js), so a submitted link can never make the server reach
+internal systems (SSRF / DNS-rebinding protection).
+
+
+2. Install & run
+----------------
+Requirements: Node.js 20+ (tested on 24).
+
+    cd fraudshield-backend
+    npm install
+    npm start
+
+Open http://localhost:3000, create an account, sign in.
+The database (fraudshield.db) is created / upgraded automatically on start.
+
+.env (in fraudshield-backend/) — copy .env.example and fill in real values.
+Never commit .env. Check it with:  npm run check:config
+
+Generate a key:  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+Do NOT change DATA_ENCRYPTION_KEY after connecting Gmail (stored passwords
+would become unreadable — just reconnect Gmail if you do).
+JWT_SECRET / SESSION_SECRET are no longer used and can be removed.
+
+Useful commands (in fraudshield-backend/):
+
+    npm test               71 security + functional tests (temporary DB, no real mail)
+    npx eslint .           lint incl. security rules
+    npm run audit          dependency vulnerability check
+    npm run db:backup      consistent online backup (see SECURE_DEPLOYMENT.md)
+    npm run check:config   validate configuration (never prints values)
+
+Security & operations documents (project root):
+    SECURITY_AUDIT.md, THREAT_MODEL.md, SECURITY.md, SECURE_DEPLOYMENT.md,
+    INCIDENT_RESPONSE.md, DEPENDENCIES.md, PRODUCTION_READINESS_REPORT.md
+
+
+3. Connect Gmail (real time)
+----------------------------
+1. Google Account → Security → turn on 2-Step Verification.
+2. Create an App Password: https://myaccount.google.com/apppasswords
+3. Console → Integrations → Gmail inbox → enter address + App Password.
+
+The server holds an IMAP IDLE connection; Gmail pushes each new message
+instantly. The latest 5 messages are analysed on first connect. Malicious mail
+gets the Gmail label "FraudShield/Threat". Reconnects automatically with
+back-off; resumes from the last processed message after a restart.
+
+
+4. Connect an Android phone (real time SMS)
+-------------------------------------------
+1. Console → Integrations → Android SMS → Pair device. Copy the server URL and
+   the device token (shown once).
+2. Open android-companion/ in Android Studio → Run on the phone
+   (or Build → Build APK and install it).
+3. In the app: paste server URL + token → "Save, grant permissions & test".
+4. Every incoming SMS is posted to POST /api/ingest/sms, analysed live, shown
+   in the console feed, and the phone shows a notification for scams.
+
+The phone must reach the server: same Wi-Fi (use the LAN URL the server prints
+on start, and allow Node.js through Windows Firewall), or expose the server via
+a tunnel and set PUBLIC_BASE_URL.
+
+Any SMS-forwarder app works as well if it can send:
+    POST <server>/api/ingest/sms
+    Authorization: Device <token>
+    Content-Type: application/json
+    {"sender": "VM-BANK", "body": "message text"}
+
+
+5. Console pages
+----------------
+  Overview       KPIs, 7-day verdict chart, live detection feed, coverage health
+  Investigate    URL / message / screenshot analysis with full evidence:
+                 probe pipeline, indicator table, redirect chain, certificate,
+                 DNS, RDAP registration, landing-page behaviour
+  Detections     filterable queue, triage status, JSON / CSV export (defanged IOCs)
+  Integrations   Gmail + Android pairing, live integration event log
+  Reports        7 / 30 / 90-day threat report, printable
+  Settings       profile, password, alert preferences, identity verification
+
+
+6. Project layout
+-----------------
+fraudshield-backend/
+  server.js                 entry point (helmet CSP, routing, error handling)
+  db.js                     SQLite + automatic migrations
+  mailer.js                 high-risk alert e-mails (escaped + defanged)
+  engine/                   detection pipeline (see section 1)
+  integrations/gmail.js     IMAP IDLE watcher
+  lib/                      auth/rate-limit, SSE hub, detections, secret encryption
+  routes/                   account.js · soc.js · integrations.js
+  public/                   SOC console (HTML + vanilla JS, Chart.js)
+android-companion/          Kotlin SMS forwarder app (Android 8+)
+backup-v1/                  the previous version, untouched

@@ -1,0 +1,56 @@
+# /etc/systemd/system/fraudshield.service
+# Install: code in /opt/fraudshield (root-owned, read-only), data in /var/lib/fraudshield,
+# secrets in /etc/fraudshield/fraudshield.env (root:fraudshield 0640).
+#   useradd --system --home /var/lib/fraudshield --shell /usr/sbin/nologin fraudshield
+#   systemctl daemon-reload && systemctl enable --now fraudshield
+
+[Unit]
+Description=FraudShield SOC
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fraudshield
+Group=fraudshield
+WorkingDirectory=/opt/fraudshield/fraudshield-backend
+EnvironmentFile=/etc/fraudshield/fraudshield.env
+Environment=NODE_ENV=production HOST=127.0.0.1 DB_FILE=/var/lib/fraudshield/fraudshield.db UPLOAD_DIR=/var/lib/fraudshield/uploads
+ExecStartPre=/usr/bin/node scripts/check-config.js
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGTERM
+
+# --- sandboxing ---
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+UMask=0077
+StateDirectory=fraudshield
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/fraudshield
+
+# --- resources ---
+MemoryMax=1G
+TasksMax=256
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

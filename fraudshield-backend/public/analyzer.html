@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investigate · FraudShield SOC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/console.css">
+</head>
+<body data-page="investigate">
+  <main>
+    <div class="page-head">
+      <div>
+        <h2>Investigate</h2>
+        <p>Every submission is analysed live: DNS, TLS, redirect chain, landing-page behaviour and domain registration. No lookup lists.</p>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab active" role="tab" data-tab="url" aria-selected="true"><span data-icon="link"></span>URL</button>
+        <button class="tab" role="tab" data-tab="message" aria-selected="false"><span data-icon="message"></span>SMS / email text</button>
+        <button class="tab" role="tab" data-tab="screenshot" aria-selected="false"><span data-icon="image"></span>Screenshot</button>
+      </div>
+
+      <form class="panel-body" id="form-url" data-pane="url">
+        <div class="field">
+          <label for="url-input">Suspicious URL</label>
+          <div class="row" style="flex-wrap:nowrap">
+            <input class="input mono" id="url-input" name="url" placeholder="https://example.com/login   ·   defanged hxxp://evil[.]com also accepted" autocomplete="off" spellcheck="false" required maxlength="2048">
+            <button class="btn btn-primary" type="submit" id="url-submit">Analyse</button>
+          </div>
+          <span class="hint">The server visits the link from an isolated probe — never open suspicious links on your own device.</span>
+        </div>
+      </form>
+
+      <form class="panel-body hidden" id="form-message" data-pane="message">
+        <div class="stack">
+          <div class="field">
+            <label for="msg-sender">Sender (optional)</label>
+            <input class="input" id="msg-sender" name="sender" placeholder="e.g. VM-HDFCBK, +91 98xxxxxx10, alerts@bank.example" maxlength="120">
+          </div>
+          <div class="field">
+            <label for="msg-text">Message text</label>
+            <textarea class="textarea" id="msg-text" name="text" placeholder="Paste the full SMS, WhatsApp or e-mail text. Every link inside is followed and analysed." required maxlength="20000"></textarea>
+          </div>
+          <div><button class="btn btn-primary" type="submit" id="msg-submit">Analyse message</button></div>
+        </div>
+      </form>
+
+      <form class="panel-body hidden" id="form-screenshot" data-pane="screenshot">
+        <label class="dropzone" id="dropzone" for="shot-input">
+          <div data-icon="image" style="display:inline-block;width:28px;height:28px"></div>
+          <div style="margin-top:6px"><b>Drop a screenshot</b> or click to choose</div>
+          <div class="hint" id="shot-name">PNG, JPEG, WebP · max 6 MB · text is read with OCR (English + Hindi)</div>
+          <input type="file" id="shot-input" accept="image/png,image/jpeg,image/webp,image/bmp" class="sr-only">
+        </label>
+        <div style="margin-top:12px"><button class="btn btn-primary" type="submit" id="shot-submit" disabled>Run OCR &amp; analyse</button></div>
+      </form>
+    </section>
+
+    <section class="panel hidden" id="result" style="margin-top:16px" aria-live="polite"></section>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-head"><h3>Recent investigations</h3><div class="actions"><a class="btn btn-sm" href="/detections.html?source=manual">View all</a></div></div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Time</th><th>Item</th><th>Verdict</th><th>Risk</th></tr></thead><tbody id="history"></tbody></table></div>
+    </section>
+  </main>
+
+  <div id="drawer-root"></div>
+  <script src="js/core.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/drawer.js"></script>
+  <script src="js/analyzer.js"></script>
+</body>
+</html>

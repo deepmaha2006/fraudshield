@@ -1,0 +1,17 @@
+# Never send secrets, data or local artefacts into the build context.
+.env
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+*.db.pre-restore-*
+data/
+backups/
+uploads/
+public/uploads/
+node_modules/
+coverage/
+*.log
+sbom.cdx.json
+tests/

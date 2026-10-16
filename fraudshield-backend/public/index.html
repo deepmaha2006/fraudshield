@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FraudShield — Real-time phishing &amp; scam detection</title>
+  <meta name="description" content="FraudShield analyses links, e-mail and SMS in real time — DNS, TLS, redirects, page behaviour and domain age — and streams verdicts into a SOC console.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/console.css">
+  <link rel="stylesheet" href="css/landing.css">
+</head>
+<body>
+  <header class="l-nav">
+    <div class="l-wrap row" style="justify-content:space-between;flex-wrap:nowrap">
+      <a class="row" href="/" style="color:inherit;text-decoration:none;gap:10px">
+        <span data-icon="shield" class="brand-mark"></span>
+        <span><span class="brand-name">FraudShield</span> <span class="brand-sub" style="margin-left:6px">SOC</span></span>
+      </a>
+      <nav class="row l-links">
+        <a href="#pipeline">Detection</a><a href="#coverage">Coverage</a><a href="#support">Support</a>
+      </nav>
+      <div class="row" id="nav-auth">
+        <button class="btn btn-ghost" data-open="login">Sign in</button>
+        <button class="btn btn-primary" data-open="signup">Create account</button>
+      </div>
+      <div class="row hidden" id="nav-console"><a class="btn btn-primary" href="/dashboard.html">Open console</a></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="l-hero l-wrap">
+      <div>
+        <div class="eyebrow" style="color:var(--accent)">Phishing &amp; fraud detection · real time</div>
+        <h1>Know whether a link is a scam <span class="accent">before anyone clicks it.</span></h1>
+        <p class="lead">FraudShield does not trust blocklists. Every link from your Gmail inbox, Android SMS or a pasted message is resolved, connected to and inspected live — and the verdict lands in your SOC console seconds later.</p>
+        <div class="row" style="margin-top:28px">
+          <button class="btn btn-primary btn-lg" data-open="signup" id="hero-cta">Start monitoring</button>
+          <a class="btn btn-lg" href="#pipeline">How detection works</a>
+        </div>
+        <div class="l-facts">
+          <div><b>6</b><span>live probe stages per link</span></div>
+          <div><b>3</b><span>channels: Gmail · SMS · manual</span></div>
+          <div><b>0</b><span>static blocklists</span></div>
+        </div>
+      </div>
+      <figure class="l-diagram" aria-label="Detection flow: message arrives, links are probed live, risk is scored, verdict is pushed">
+        <div class="l-node"><span data-icon="mail"></span><div><b>Message arrives</b><small>Gmail IMAP IDLE · Android SMS receiver</small></div></div>
+        <div class="l-arrow"></div>
+        <div class="l-node accent-node"><span data-icon="globe"></span><div><b>Links probed live</b><small>DNS · TLS · redirects · page · RDAP</small></div></div>
+        <div class="l-arrow"></div>
+        <div class="l-node"><span data-icon="bolt"></span><div><b>Signals scored</b><small>noisy-OR model · trust offsets · critical floor</small></div></div>
+        <div class="l-arrow"></div>
+        <div class="l-node"><span data-icon="alert"></span><div><b>Verdict streamed</b><small>console feed · phone notification · e-mail alert</small></div></div>
+      </figure>
+    </section>
+
+    <section class="l-section" id="pipeline">
+      <div class="l-wrap">
+        <div class="l-head"><div class="eyebrow">Detection pipeline</div><h2>Measured, not looked up</h2>
+          <p>A brand-new phishing domain is on no list. These are the properties FraudShield computes for every link instead.</p></div>
+        <div class="l-grid">
+          <article class="panel l-card"><span data-icon="link"></span><h3>URL structure</h3><p>Homograph and punycode tricks, embedded brand domains, IP hosts in decimal or hex, "@" credential tricks, entropy of algorithmically generated names, executable payloads.</p></article>
+          <article class="panel l-card"><span data-icon="server"></span><h3>DNS</h3><p>Resolution, NXDOMAIN, fast-flux TTL patterns, MX / SPF / DMARC presence, and refusal of links that point into private networks.</p></article>
+          <article class="panel l-card"><span data-icon="globe"></span><h3>Redirect chain</h3><p>Follows every hop the way a browser would — cross-domain bounces, HTTPS downgrades, shortener-hidden destinations — then judges the final landing page.</p></article>
+          <article class="panel l-card"><span data-icon="lock"></span><h3>TLS certificate</h3><p>Chain validity, host mismatch, self-signed or expired certificates, certificates minted hours ago, and organisation validation.</p></article>
+          <article class="panel l-card"><span data-icon="file"></span><h3>Domain registration</h3><p>Live RDAP query to the authoritative registry: registration age, registry holds, unregistered domains, throwaway registration terms.</p></article>
+          <article class="panel l-card"><span data-icon="search"></span><h3>Page behaviour</h3><p>Password and card / OTP / Aadhaar fields, forms that post to another domain, brand claimed vs. domain owned, cloned assets, obfuscated scripts, APK lures.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="l-section" id="coverage">
+      <div class="l-wrap">
+        <div class="l-head"><div class="eyebrow">Coverage</div><h2>Where attacks actually arrive</h2></div>
+        <div class="l-grid l-grid-3">
+          <article class="panel l-card"><span data-icon="mail"></span><h3>Gmail, push-based</h3><p>An IMAP IDLE connection receives each message the instant it lands. SPF, DKIM and DMARC results, display-name spoofing and deceptive link text are analysed alongside every link. Malicious mail gets a Gmail label.</p></article>
+          <article class="panel l-card"><span data-icon="phone"></span><h3>Android SMS</h3><p>The companion app forwards each incoming SMS to your server and raises a phone notification when it is a scam — KYC, parcel, electricity-bill and remote-access lures included.</p></article>
+          <article class="panel l-card"><span data-icon="overview"></span><h3>SOC console</h3><p>Live detection feed, triage queue with full evidence trail, defanged IOCs, JSON / CSV export and period reports — built for analysts, not marketing.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="l-section" id="support">
+      <div class="l-wrap l-support">
+        <div><div class="eyebrow">Support</div><h2>Talk to us</h2>
+          <p class="muted">Received something you are unsure about? Use the investigator in the console — never open the link yourself. For product questions or a false verdict, open a ticket.</p></div>
+        <form class="panel panel-body stack" id="support-form">
+          <div class="form-row">
+            <div class="field"><label for="s-name">Name</label><input class="input" id="s-name" name="name" required maxlength="120"></div>
+            <div class="field"><label for="s-email">Email</label><input class="input" id="s-email" name="email" type="email" required></div>
+          </div>
+          <div class="field"><label for="s-phone">Phone (optional)</label><input class="input" id="s-phone" name="phone" maxlength="20"></div>
+          <div class="field"><label for="s-problem">How can we help?</label><textarea class="textarea" id="s-problem" name="problem" required maxlength="5000" style="min-height:110px"></textarea></div>
+          <div><button class="btn btn-primary" type="submit">Submit ticket</button></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="l-foot"><div class="l-wrap row" style="justify-content:space-between">
+    <span class="dim">© <span id="year"></span> FraudShield</span>
+    <span class="dim mono" style="font-size:12px">Never click a link to check if it is safe.</span>
+  </div></footer>
+
+  <!-- auth dialogs -->
+  <dialog class="l-modal" id="modal-login" aria-labelledby="login-title">
+    <form class="stack" id="login-form">
+      <div class="row" style="justify-content:space-between"><h2 id="login-title">Sign in to the console</h2><button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button></div>
+      <div class="field"><label for="l-email">Email</label><input class="input" id="l-email" name="email" type="email" required autocomplete="email"></div>
+      <div class="field"><label for="l-pass">Password</label><input class="input" id="l-pass" name="password" type="password" required autocomplete="current-password"></div>
+      <div class="callout danger hidden" data-error></div>
+      <button class="btn btn-primary btn-lg" type="submit">Sign in</button>
+      <p class="dim" style="margin:0;font-size:13px">No account? <a href="#" data-switch="signup">Create one</a> · <a href="#" data-switch="forgot">Forgot password?</a></p>
+    </form>
+  </dialog>
+  <dialog class="l-modal" id="modal-forgot" aria-labelledby="forgot-title">
+    <form class="stack" id="forgot-form">
+      <div class="row" style="justify-content:space-between"><h2 id="forgot-title">Reset your password</h2><button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button></div>
+      <p class="muted" style="margin:0;font-size:13px">Enter your account e-mail. If it is registered, we send a single-use link valid for 30 minutes.</p>
+      <div class="field"><label for="f-email">Email</label><input class="input" id="f-email" name="email" type="email" required autocomplete="email"></div>
+      <div class="callout danger hidden" data-error></div>
+      <button class="btn btn-primary btn-lg" type="submit">Send reset link</button>
+    </form>
+  </dialog>
+  <dialog class="l-modal" id="modal-signup" aria-labelledby="signup-title">
+    <form class="stack" id="signup-form">
+      <div class="row" style="justify-content:space-between"><h2 id="signup-title">Create your account</h2><button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button></div>
+      <div class="field"><label for="r-name">Full name</label><input class="input" id="r-name" name="fullName" required maxlength="120" autocomplete="name"></div>
+      <div class="field"><label for="r-email">Email</label><input class="input" id="r-email" name="email" type="email" required autocomplete="email"></div>
+      <div class="field"><label for="r-pass">Password</label><input class="input" id="r-pass" name="password" type="password" required minlength="8" autocomplete="new-password"><span class="hint">At least 8 characters.</span></div>
+      <div class="callout danger hidden" data-error></div>
+      <button class="btn btn-primary btn-lg" type="submit">Create account</button>
+      <p class="dim" style="margin:0;font-size:13px">Already registered? <a href="#" data-switch="login">Sign in</a></p>
+    </form>
+  </dialog>
+
+  <script src="js/core.js"></script>
+  <script src="js/landing.js"></script>
+</body>
+</html>

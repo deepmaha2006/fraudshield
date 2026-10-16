@@ -1,0 +1,45 @@
+# ---- secrets (never commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+
+# ---- data, user content, backups ----
+*.db
+*.db-wal
+*.db-shm
+*.db.pre-restore-*
+*.sqlite*
+backups/
+fraudshield-backend/uploads/
+fraudshield-backend/public/uploads/
+backup-v1/
+checkpoints/
+
+# ---- logs & reports ----
+logs/
+*.log
+npm-debug.log*
+sbom.cdx.json
+
+# ---- dependencies & builds ----
+node_modules/
+coverage/
+android-companion/.gradle/
+android-companion/build/
+android-companion/app/build/
+android-companion/local.properties
+android-companion/*.iml
+android-companion/.idea/
+*.apk
+*.aab
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

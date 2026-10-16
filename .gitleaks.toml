@@ -1,0 +1,34 @@
+# Gitleaks configuration — default rules plus FraudShield-specific secrets.
+title = "fraudshield"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "fraudshield-device-token"
+description = "FraudShield Android device token"
+regex = '''fsd_[A-Za-z0-9_-]{30,}'''
+tags = ["token", "fraudshield"]
+
+[[rules]]
+id = "fraudshield-data-encryption-key"
+description = "DATA_ENCRYPTION_KEY value"
+regex = '''DATA_ENCRYPTION_KEY\s*=\s*[0-9a-fA-F]{64}'''
+tags = ["key", "fraudshield"]
+
+[[rules]]
+id = "google-app-password-assignment"
+description = "Google App Password assigned in config"
+regex = '''(?i)(EMAIL_APP_PASSWORD|SMTP_PASS)\s*=\s*[a-z]{4}\s?[a-z]{4}\s?[a-z]{4}\s?[a-z]{4}'''
+tags = ["password", "fraudshield"]
+
+[allowlist]
+description = "Placeholders and synthetic test values only"
+paths = [
+  '''fraudshield-backend/\.env\.example''',
+  '''backup-v1/''',
+]
+regexes = [
+  '''REPLACE_WITH_[A-Z0-9_]+''',
+  '''fsd_not-a-real-token''',
+]

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings · FraudShield SOC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/console.css">
+</head>
+<body data-page="settings">
+  <main>
+    <div class="page-head"><div><h2>Settings</h2><p>Analyst profile, credentials, alerting and identity verification.</p></div></div>
+
+    <div class="grid grid-halves">
+      <section class="panel">
+        <div class="panel-head"><h3>Profile</h3></div>
+        <div class="panel-body stack">
+          <div class="row">
+            <span class="avatar" id="avatar" style="width:64px;height:64px;font-size:20px"></span>
+            <div class="stack" style="gap:6px">
+              <div class="row">
+                <label class="btn btn-sm" for="avatar-input">Upload photo</label>
+                <input type="file" id="avatar-input" accept="image/png,image/jpeg,image/webp,image/gif" class="sr-only">
+                <button class="btn btn-ghost btn-sm" id="avatar-remove">Remove</button>
+              </div>
+              <span class="hint">PNG, JPEG, WebP or GIF · up to 2 MB</span>
+            </div>
+          </div>
+          <form class="stack" id="profile-form">
+            <div class="form-row">
+              <div class="field"><label for="p-name">Full name</label><input class="input" id="p-name" name="fullName" required maxlength="120"></div>
+              <div class="field"><label for="p-phone">Phone</label><input class="input" id="p-phone" name="phone" maxlength="20" placeholder="+91…"></div>
+            </div>
+            <div class="field"><label for="p-email">Email</label><input class="input" id="p-email" disabled>
+              <div class="row" id="verify-email-row" style="font-size:12.5px"></div></div>
+            <div class="row"><button class="btn btn-primary" type="submit">Save profile</button><span class="hint" id="member-since"></span></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h3>Password</h3></div>
+        <form class="panel-body stack" id="password-form">
+          <div class="field"><label for="cur-pass">Current password</label><input class="input" id="cur-pass" name="currentPassword" type="password" required autocomplete="current-password"></div>
+          <div class="form-row">
+            <div class="field"><label for="new-pass">New password</label><input class="input" id="new-pass" name="newPassword" type="password" required minlength="8" autocomplete="new-password"></div>
+            <div class="field"><label for="new-pass2">Confirm</label><input class="input" id="new-pass2" type="password" required minlength="8" autocomplete="new-password"></div>
+          </div>
+          <div><button class="btn btn-primary" type="submit">Change password</button></div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h3>Alerting</h3></div>
+        <form class="panel-body stack" id="prefs-form">
+          <label class="row" style="justify-content:space-between;flex-wrap:nowrap">
+            <span><b style="font-weight:500">High-risk e-mail alerts</b><br><span class="hint">E-mail me when any source produces a detection with risk ≥ 65. Links in alerts are defanged.</span></span>
+            <span class="switch"><input type="checkbox" name="emailHighRisk"><span></span></span>
+          </label>
+          <label class="row" style="justify-content:space-between;flex-wrap:nowrap">
+            <span><b style="font-weight:500">Weekly summary</b><br><span class="hint">Preference is stored for the weekly digest. Delivery is not yet implemented — use Reports in the meantime.</span></span>
+            <span class="switch"><input type="checkbox" name="emailWeeklySummary"><span></span></span>
+          </label>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h3>Active sessions</h3><span class="sub">sign out anything you don't recognise</span></div>
+        <div class="table-wrap"><table class="data"><thead><tr><th>Client</th><th>Last active</th><th></th></tr></thead><tbody id="sessions"></tbody></table></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h3>Delete account</h3></div>
+        <form class="panel-body stack" id="delete-form">
+          <p class="muted" style="margin:0">Permanently deletes your account, every detection, the stored Gmail credentials and all paired devices.</p>
+          <div class="field"><label for="del-pass">Confirm with your password</label><input class="input" id="del-pass" name="password" type="password" required autocomplete="current-password"></div>
+          <div><button class="btn btn-danger" type="submit">Delete my account</button></div>
+        </form>
+      </section>
+
+      <section class="panel" id="verification">
+        <div class="panel-head"><h3>Identity verification</h3><div class="actions" id="verify-status"></div></div>
+        <div class="panel-body" id="verify-body"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/core.js"></script>
+  <script src="js/profile.js"></script>
+</body>
+</html>
