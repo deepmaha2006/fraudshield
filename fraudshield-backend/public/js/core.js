@@ -75,6 +75,26 @@ const FS = (() => {
 
     const toLogin = () => location.replace('/index.html#login');
 
+    // Server unreachable / no network → the "Connection Lost" page, which returns here when it can.
+    const toOffline = () => location.replace(`/offline.html?return=${encodeURIComponent(location.pathname + location.search)}`);
+    const toServerError = () => location.replace(`/500.html?return=${encodeURIComponent(location.pathname + location.search)}`);
+
+    /** A fetch threw: is it really the connection (and not a one-off)? */
+    async function connectionLost() {
+        if (navigator.onLine === false) return true;
+        try {
+            const r = await fetch('/healthz', { cache: 'no-store' });
+            return !r.ok;
+        } catch {
+            return true;
+        }
+    }
+
+    // Offline fallback for page loads (see /sw.js). Needs a secure context: https or localhost.
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+    }
+
     async function logout() {
         try {
             await fetch('/api/logout', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': session.csrf || '' } });
@@ -87,7 +107,13 @@ const FS = (() => {
         const headers = {};
         if (body !== undefined) headers['Content-Type'] = 'application/json';
         if (method !== 'GET' && session.csrf) headers['X-CSRF-Token'] = session.csrf;
-        const res = await fetch(`/api${path}`, { method, headers, credentials: 'same-origin', body: form || (body !== undefined ? JSON.stringify(body) : undefined) });
+        let res;
+        try {
+            res = await fetch(`/api${path}`, { method, headers, credentials: 'same-origin', body: form || (body !== undefined ? JSON.stringify(body) : undefined) });
+        } catch (err) {
+            if (await connectionLost()) { toOffline(); throw new Error('Connection lost'); }
+            throw new Error('Request failed — please try again.');
+        }
         if (res.status === 401) { toLogin(); throw new Error('Session expired'); }
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
@@ -224,7 +250,9 @@ const FS = (() => {
     /** Load the session (or bounce to sign-in), then build the console shell. */
     async function init() {
         const res = await fetch('/api/session', { credentials: 'same-origin' }).catch(() => null);
-        if (!res || !res.ok) { toLogin(); return false; }
+        if (!res) { toOffline(); return false; }            // server unreachable / no network
+        if (res.status >= 500) { toServerError(); return false; }
+        if (!res.ok) { toLogin(); return false; }
         const data = await res.json();
         session = { user: data.user || {}, csrf: data.csrf };
         buildShell();

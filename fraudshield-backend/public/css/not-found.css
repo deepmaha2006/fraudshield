@@ -1,0 +1,56 @@
+/* not-found.css — 404 / offline / error page (self-contained: works offline from the service-worker cache). */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: #000;
+  color: #000;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+}
+
+/* The `hidden` attribute must win over component display rules (e.g. .nf-btn's inline-flex). */
+[hidden] { display: none !important; }
+
+.nf-stage { position: relative; width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+/* Layering: canvas (circles) at the back, figures above it, message on top. */
+.nf-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.nf-characters { position: absolute; width: 99%; height: 95%; pointer-events: none; z-index: 10; }
+.nf-characters img { position: absolute; width: 18%; height: 18%; }
+
+.nf-message {
+  position: absolute; z-index: 100; width: 90%; height: 90%;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+  opacity: 0; transition: opacity .5s ease;
+}
+.nf-message.visible { opacity: 1; }
+.nf-title { font-size: clamp(22px, 4vw, 35px); font-weight: 600; margin: 1%; }
+.nf-code { font-size: clamp(52px, 11vw, 80px); font-weight: 700; margin: 1%; letter-spacing: -.02em; line-height: 1; }
+.nf-text { font-size: clamp(14px, 1.6vw, 15px); width: 50%; min-width: min(40ch, 90vw); margin: 1%; line-height: 1.5; }
+.nf-detail { font: 12px ui-monospace, 'Cascadia Code', Consolas, monospace; color: #555; margin-top: 6px; overflow-wrap: anywhere; }
+
+.nf-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-top: 32px; }
+.nf-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 24px;
+  font: 500 16px inherit; font-family: inherit; cursor: pointer; text-decoration: none;
+  border: 2px solid #000; transition: transform .3s ease, background-color .3s ease, color .3s ease;
+}
+.nf-btn svg { width: 20px; height: 20px; }
+.nf-btn:hover { transform: scale(1.05); }
+.nf-btn:focus-visible { outline: 3px solid #22c3e6; outline-offset: 3px; }
+.nf-btn-outline { background: transparent; color: #000; }
+.nf-btn-outline:hover { background: #000; color: #fff; }
+.nf-btn-solid { background: #000; color: #fff; }
+.nf-btn-solid:hover { background: #1f2937; }
+
+/* No motion: skip the animations and show the final state immediately. */
+.nf-static { background: #fff; }
+.nf-static .nf-message { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-btn, .nf-message { transition: none; }
+  .nf-btn:hover { transform: none; }
+}
+@media (max-width: 600px) {
+  .nf-text { width: 90%; }
+  .nf-actions { gap: 10px; }
+}

@@ -36,6 +36,10 @@ module.exports = [
         },
     },
     {
+        files: ['public/sw.js'],
+        languageOptions: { sourceType: 'script', globals: { ...globals.serviceworker } },
+    },
+    {
         // Operator CLI scripts take paths from the operator by design.
         files: ['scripts/**/*.js'],
         rules: { 'security/detect-non-literal-fs-filename': 'off' },

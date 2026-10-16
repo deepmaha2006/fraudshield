@@ -86,10 +86,19 @@ function createApp() {
         index: 'index.html',
         setHeaders(res, filePath) {
             if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+            // The service worker must revalidate on every load so fixes reach browsers immediately.
+            if (filePath.endsWith(`${path.sep}sw.js`)) res.setHeader('Cache-Control', 'no-cache');
             if (filePath.includes(`${path.sep}uploads${path.sep}`)) res.setHeader('Content-Disposition', 'inline');
         },
     }));
-    app.use((req, res) => res.status(404).type('text/plain').send('Not found'));
+
+    // Browsers asking for a page get the animated status page; everything else gets plain text.
+    // Browsers name text/html explicitly; `*/*` (curl, scripts, scanners) keeps the plain-text answer.
+    const wantsPage = req => (req.method === 'GET' || req.method === 'HEAD') && /\btext\/html\b/i.test(req.get('accept') || '');
+    app.use((req, res) => {
+        if (wantsPage(req)) return res.status(404).sendFile(path.join(publicDir, '404.html'), { headers: { 'Cache-Control': 'no-store' } });
+        res.status(404).type('text/plain').send('Not found');
+    });
 
     // ---- errors: generic to clients, detailed (sanitised) to logs
     app.use((err, req, res, next) => {
@@ -101,6 +110,10 @@ function createApp() {
         if (status === 503 && err.expose) message = err.message;
         if (status >= 500) log.error('http.error', { rid: req.id, method: req.method, path: req.path, err });
         else if (status === 400 || status === 413 || status === 415) log.info('http.client_error', { rid: req.id, path: req.path, status, message });
+        // A failing page load shows the friendly error page (never details); API callers get JSON.
+        if (status >= 500 && !req.originalUrl.startsWith('/api') && wantsPage(req)) {
+            return res.status(status).sendFile(path.join(publicDir, '500.html'), { headers: { 'Cache-Control': 'no-store' } });
+        }
         res.status(status).json({ message, requestId: req.id });
     });
 
