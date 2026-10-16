@@ -44,7 +44,6 @@ jobs:
           cache-dependency-path: fraudshield-backend/package-lock.json
       # Dependency lifecycle scripts are disabled; only the reviewed native build is run.
       - run: npm ci --ignore-scripts
-      - run: npm rebuild sqlite3
       - name: Lint (ESLint + eslint-plugin-security)
         run: npx eslint . --max-warnings=0
       - name: Unit, integration and security regression tests

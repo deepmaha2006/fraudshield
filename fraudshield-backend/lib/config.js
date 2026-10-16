@@ -30,11 +30,15 @@ function load() {
         // Production sits behind a TLS reverse proxy, so bind to loopback unless told otherwise.
         host: env.HOST || (isProd ? '127.0.0.1' : '0.0.0.0'),
         dbFile: env.DB_FILE || 'fraudshield.db',
+        // Remote libSQL (e.g. Turso) for hosts without a persistent disk; when set, DB_FILE is ignored.
+        dbUrl: env.DATABASE_URL || '',
+        dbAuthToken: env.DATABASE_AUTH_TOKEN || '',
         // User uploads live outside the code tree and outside public/ (read-only images, writable data dir).
         uploadDir: require('path').resolve(__dirname, '..', env.UPLOAD_DIR || 'data/uploads'),
         dataKey: env.DATA_ENCRYPTION_KEY || '',
         publicBaseUrl: (env.PUBLIC_BASE_URL || '').replace(/\/$/, ''),
-        trustProxy: env.TRUST_PROXY || (isProd ? '' : 'loopback'),
+        // A hop count ("1") for platform load balancers with changing addresses, or proxy IPs / names.
+        trustProxy: /^\d+$/.test(env.TRUST_PROXY || '') ? Number(env.TRUST_PROXY) : env.TRUST_PROXY || (isProd ? '' : 'loopback'),
         cookieSecure: bool(env.COOKIE_SECURE, isProd),
         sessionTtlHours: check('SESSION_TTL_HOURS', () => int(env.SESSION_TTL_HOURS, 12, 1, 168)),
         sessionIdleMinutes: check('SESSION_IDLE_MINUTES', () => int(env.SESSION_IDLE_MINUTES, 120, 5, 1440)),
@@ -59,6 +63,8 @@ function load() {
     // ---- always required
     if (!/^[0-9a-f]{64}$/i.test(cfg.dataKey)) errors.push('DATA_ENCRYPTION_KEY must be 64 hex characters (32 random bytes).');
     else if (/^(.)\1+$/.test(cfg.dataKey) || /^(0123456789abcdef)+$/i.test(cfg.dataKey)) errors.push('DATA_ENCRYPTION_KEY is a placeholder value; generate a random key.');
+    if (cfg.dbUrl && !/^(libsql|https|wss):\/\/[^\s/]+/i.test(cfg.dbUrl)) errors.push('DATABASE_URL must be a libsql://, https:// or wss:// URL.');
+    if (cfg.dbUrl && !cfg.dbAuthToken) errors.push('DATABASE_URL is set but DATABASE_AUTH_TOKEN is missing.');
     if (!['gmail', 'smtp', 'memory', 'disabled'].includes(cfg.mail.transport)) errors.push('MAIL_TRANSPORT must be gmail, smtp, memory or disabled.');
     if (cfg.mail.transport === 'gmail' && !(cfg.mail.gmailUser && cfg.mail.gmailPass)) errors.push('MAIL_TRANSPORT=gmail needs EMAIL_USER and EMAIL_APP_PASSWORD.');
     if (cfg.mail.transport === 'smtp' && !(cfg.mail.smtpHost && cfg.mail.from)) errors.push('MAIL_TRANSPORT=smtp needs SMTP_HOST and MAIL_FROM.');

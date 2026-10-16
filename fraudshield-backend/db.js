@@ -1,23 +1,28 @@
-// db.js — SQLite access: promise helpers, safe transactions, versioned
+// db.js — database access: promise helpers, safe transactions, versioned
 // migrations, retention housekeeping.
+//
+// Backed by libSQL (SQLite-compatible). Two modes, same SQL:
+//   * local file  (DB_FILE)                         — development, tests, single-host installs
+//   * remote      (DATABASE_URL + DATABASE_AUTH_TOKEN, e.g. Turso) — hosts without a persistent disk
 
-const sqlite3 = require('sqlite3');
+const { createClient } = require('@libsql/client');
 const fs = require('fs');
 const path = require('path');
 const { AsyncLocalStorage } = require('async_hooks');
 const config = require('./lib/config');
 
-const DB_PATH = config.dbFile === ':memory:' ? ':memory:' : path.resolve(__dirname, config.dbFile);
-const db = new sqlite3.Database(DB_PATH);
-db.configure('busyTimeout', 5000);
+const REMOTE = Boolean(config.dbUrl);
+const DB_PATH = REMOTE ? null : config.dbFile === ':memory:' ? ':memory:' : path.resolve(__dirname, config.dbFile);
+const client = REMOTE
+    ? createClient({ url: config.dbUrl, authToken: config.dbAuthToken })
+    : createClient({ url: DB_PATH === ':memory:' ? ':memory:' : `file:${DB_PATH}` });
 
-// One connection is shared by every request. While a transaction is open, any
-// statement issued outside it must wait, otherwise it would silently become
-// part of (and be rolled back with) another request's transaction.
-const txContext = new AsyncLocalStorage();
+// One client is shared by every request. While a transaction is open, any
+// statement issued outside it must wait, so writes from different requests
+// can never interleave with (or be rolled back by) another request's transaction.
+const txContext = new AsyncLocalStorage(); // store: the open libSQL transaction
 let lock = Promise.resolve();
 async function waitTurn() {
-    if (txContext.getStore()) return;
     for (;;) {
         const current = lock;
         await current;
@@ -25,23 +30,32 @@ async function waitTurn() {
     }
 }
 
+// sqlite3 bound `undefined` as NULL; libSQL rejects it — keep the old contract.
+const bind = params => Array.isArray(params) ? params.map(v => v === undefined ? null : v) : params;
+async function execute(sql, params = []) {
+    const t = txContext.getStore();
+    if (!t) await waitTurn();
+    return (t || client).execute({ sql, args: bind(params) });
+}
+const toObject = (rs, row) => Object.fromEntries(rs.columns.map((c, i) => [c, row[i]]));
+
 const run = async (sql, params = []) => {
-    await waitTurn();
-    return new Promise((resolve, reject) =>
-        db.run(sql, params, function (err) { err ? reject(err) : resolve({ lastID: this.lastID, changes: this.changes }); }));
+    const rs = await execute(sql, params);
+    return { lastID: rs.lastInsertRowid === undefined ? undefined : Number(rs.lastInsertRowid), changes: rs.rowsAffected };
 };
 const get = async (sql, params = []) => {
-    await waitTurn();
-    return new Promise((resolve, reject) => db.get(sql, params, (err, row) => err ? reject(err) : resolve(row)));
+    const rs = await execute(sql, params);
+    return rs.rows.length ? toObject(rs, rs.rows[0]) : undefined;
 };
 const all = async (sql, params = []) => {
-    await waitTurn();
-    return new Promise((resolve, reject) => db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows)));
+    const rs = await execute(sql, params);
+    return rs.rows.map(r => toObject(rs, r));
 };
 
 /** Run fn() atomically. Nested calls join the outer transaction. */
 async function tx(fn) {
     if (txContext.getStore()) return fn();
+    // Inline (not `await waitTurn()`): the lock must be taken in the same tick the wait ends.
     for (;;) {
         const current = lock;
         await current;
@@ -50,17 +64,33 @@ async function tx(fn) {
     let release;
     lock = new Promise(r => { release = r; }); // taken synchronously after the wait
     try {
-        return await txContext.run(true, async () => {
-            await run('BEGIN IMMEDIATE');
-            try {
-                const result = await fn();
-                await run('COMMIT');
-                return result;
-            } catch (err) {
-                await run('ROLLBACK').catch(() => {});
-                throw err;
-            }
-        });
+        if (!REMOTE) {
+            // Local file: one connection, plain BEGIN/COMMIT (libSQL's transaction() would open a
+            // second connection to the same file and contend with this one for the write lock).
+            return await txContext.run(client, async () => {
+                await run('BEGIN IMMEDIATE');
+                try {
+                    const result = await fn();
+                    await run('COMMIT');
+                    return result;
+                } catch (err) {
+                    await run('ROLLBACK').catch(() => {});
+                    throw err;
+                }
+            });
+        }
+        // Remote: every request is stateless, so the transaction must be an interactive libSQL one.
+        const t = await client.transaction('write');
+        try {
+            const result = await txContext.run(t, fn);
+            await t.commit();
+            return result;
+        } catch (err) {
+            await t.rollback().catch(() => {});
+            throw err;
+        } finally {
+            t.close();
+        }
     } finally {
         release();
     }
@@ -198,21 +228,58 @@ const MIGRATIONS = [
         )`);
         await run('CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id)');
     },
+
+    // 4: profile pictures move into the database so they survive hosts without a persistent
+    // disk. Pictures already on disk are imported once; links whose file is gone are cleared.
+    async () => {
+        await run(`CREATE TABLE IF NOT EXISTS avatars (
+            name TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            mime TEXT NOT NULL,
+            data BLOB NOT NULL,
+            created_at TEXT NOT NULL DEFAULT ${NOW}
+        )`);
+        await run('CREATE INDEX IF NOT EXISTS idx_avatars_user ON avatars(user_id)');
+        const { nameFromUrl, mimeFor } = require('./lib/avatars');
+        for (const u of await all('SELECT id, avatar_url FROM users WHERE avatar_url IS NOT NULL')) {
+            const name = nameFromUrl(u.avatar_url);
+            let data = null;
+            // eslint-disable-next-line security/detect-non-literal-fs-filename -- name validated by nameFromUrl (server-generated pattern)
+            if (name) try { data = fs.readFileSync(path.join(config.uploadDir, 'avatars', name)); } catch { /* file no longer exists */ }
+            if (data) await run('INSERT OR IGNORE INTO avatars (name, user_id, mime, data) VALUES (?, ?, ?, ?)', [name, u.id, mimeFor(name), data]);
+            else await run('UPDATE users SET avatar_url = NULL WHERE id = ?', [u.id]);
+        }
+    },
 ];
 
 if (MIGRATIONS.length !== require('./lib/schema').SCHEMA_VERSION) {
     throw new Error('lib/schema.js SCHEMA_VERSION must equal the number of migrations in db.js');
 }
 
+// The schema version lives in a table rather than PRAGMA user_version, which
+// hosted libSQL does not persist. Databases created before the switch adopt
+// their user_version once.
+async function schemaVersion() {
+    await run('CREATE TABLE IF NOT EXISTS schema_meta (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)');
+    const row = await get('SELECT version FROM schema_meta WHERE id = 1');
+    if (row) return row.version;
+    const legacy = await get('PRAGMA user_version').then(r => r?.user_version || 0).catch(() => 0);
+    await run('INSERT INTO schema_meta (id, version) VALUES (1, ?)', [legacy]);
+    return legacy;
+}
+
 async function migrate() {
-    await run('PRAGMA foreign_keys = ON');
-    await run('PRAGMA journal_mode = WAL');
-    await run('PRAGMA synchronous = NORMAL');
-    const { user_version: from } = await get('PRAGMA user_version');
+    if (!REMOTE) {
+        await run('PRAGMA busy_timeout = 5000');
+        await run('PRAGMA foreign_keys = ON');
+        await run('PRAGMA journal_mode = WAL');
+        await run('PRAGMA synchronous = NORMAL');
+    }
+    const from = await schemaVersion();
     for (let v = from; v < MIGRATIONS.length; v++) {
         await tx(async () => {
             await MIGRATIONS[v]();
-            await run(`PRAGMA user_version = ${v + 1}`);
+            await run('UPDATE schema_meta SET version = ? WHERE id = 1', [v + 1]);
         });
     }
     restrictFilePermissions();
@@ -221,7 +288,7 @@ async function migrate() {
 
 /** Owner-only access to the database and its WAL/SHM files (POSIX; on Windows use NTFS ACLs — see SECURE_DEPLOYMENT.md). */
 function restrictFilePermissions() {
-    if (process.platform === 'win32' || DB_PATH === ':memory:') return;
+    if (process.platform === 'win32' || REMOTE || DB_PATH === ':memory:') return;
     for (const f of [DB_PATH, `${DB_PATH}-wal`, `${DB_PATH}-shm`]) {
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is server-generated (config dir + multer/regex-validated name), never user input
         try { fs.chmodSync(f, 0o600); } catch { /* file may not exist yet */ }
@@ -242,10 +309,10 @@ async function purgeExpired() {
 }
 
 let closed = false;
-const close = () => closed ? Promise.resolve() : new Promise((resolve, reject) => db.close(err => {
-    if (err) return reject(err);
+async function close() {
+    if (closed) return;
     closed = true;
-    resolve();
-}));
+    client.close();
+}
 
-module.exports = { db, run, get, all, tx, migrate, integrityCheck, purgeExpired, close, DB_PATH, MIGRATIONS };
+module.exports = { client, run, get, all, tx, migrate, integrityCheck, purgeExpired, close, REMOTE, DB_PATH, MIGRATIONS };

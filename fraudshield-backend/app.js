@@ -9,6 +9,7 @@ const config = require('./lib/config');
 const { log, requestLogger } = require('./lib/logger');
 const { originGuard } = require('./lib/http');
 const { get } = require('./db');
+const { URL_PREFIX, isAvatarName } = require('./lib/avatars');
 
 function createApp() {
     const app = express();
@@ -65,18 +66,16 @@ function createApp() {
     app.use('/api', require('./routes/soc'));
     app.use('/api', (req, res) => res.status(404).json({ message: 'Not found.' }));
 
-    // ---- user uploads: only verified images, from a dedicated directory, never executable.
-    app.use('/uploads', express.static(config.uploadDir, {
-        dotfiles: 'deny',
-        index: false,
-        redirect: false,
-        setHeaders(res, filePath) {
-            if (!/\.(png|jpg|webp|gif)$/i.test(filePath)) res.setHeader('Content-Type', 'application/octet-stream');
-            res.setHeader('Content-Disposition', 'inline');
-            res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; sandbox");
-            res.setHeader('Cache-Control', 'private, max-age=86400');
-        },
-    }));
+    // ---- profile pictures: verified images served from the database, never executable.
+    app.get(`${URL_PREFIX}:name`, async (req, res, next) => {
+        const row = isAvatarName(req.params.name) ? await get('SELECT mime, data FROM avatars WHERE name = ?', [req.params.name]) : undefined;
+        if (!row) return next();
+        res.setHeader('Content-Type', row.mime);
+        res.setHeader('Content-Disposition', 'inline');
+        res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; sandbox");
+        res.setHeader('Cache-Control', 'private, max-age=86400');
+        res.end(Buffer.from(row.data));
+    });
 
     // ---- static console. dotfiles are refused; the DB, .env and source live outside public/.
     const publicDir = path.join(__dirname, 'public');

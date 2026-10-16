@@ -89,6 +89,15 @@ test('avatar: content is verified, not the declared type (MIME spoofing)', async
     assert.equal(served.status, 200);
     assert.equal(served.headers.get('content-type'), 'image/png');
     assert.equal(served.headers.get('x-content-type-options'), 'nosniff');
+
+    // Stored in the database (no disk needed): a new picture retires the old URL; removing clears it.
+    const again = await upload(c, '/api/user/upload-picture', 'avatar', PNG_1x1, 'image/png', 'b.png');
+    const { avatarUrl: second } = await again.json();
+    assert.notEqual(second, avatarUrl);
+    assert.equal((await fetch(srv.base + avatarUrl)).status, 404);
+    assert.equal((await fetch(srv.base + second)).status, 200);
+    assert.equal((await c.del('/api/user/remove-picture')).status, 200);
+    assert.equal((await fetch(srv.base + second)).status, 404);
 });
 
 test('screenshot: decompression-bomb dimensions are refused before OCR', async () => {

@@ -1,6 +1,6 @@
 # FraudShield — Secure Deployment Guide
 
-FraudShield is a single Node.js process with a local SQLite database. It is designed for **one instance per database** behind a **TLS-terminating reverse proxy**. Nothing here has been deployed to a production host yet — follow this guide and complete the release checklist (§9) before going live.
+FraudShield is a single Node.js process with a SQLite-compatible (libSQL) database — a local file, or a hosted Turso database on platforms without a persistent disk (see §10, Render). It is designed for **one instance per database** behind a **TLS-terminating reverse proxy**. Nothing here has been deployed to a production host yet — follow this guide and complete the release checklist (§9) before going live.
 
 ## 1. Requirements
 
@@ -8,7 +8,7 @@ FraudShield is a single Node.js process with a local SQLite database. It is desi
 - Node.js **24 LTS** (≥ 20.17 supported; CI tests 22 and 24).
 - A DNS name and TLS certificate (e.g. Let's Encrypt).
 - Outbound HTTPS/HTTP to the public internet (the prober fetches untrusted sites), to `imap.gmail.com:993`, your SMTP server, and `data.iana.org` + TLD RDAP servers.
-- Build tools only on the build machine (`python3 make g++`) for the `sqlite3` native module.
+- No build tools: the libSQL driver ships prebuilt binaries.
 
 ## 2. Configuration
 
@@ -50,7 +50,7 @@ sudo install -d -o root -g fraudshield -m 0750 /etc/fraudshield
 # 2. code (root-owned, read-only for the service)
 sudo cp -r fraudshield-backend /opt/fraudshield/
 cd /opt/fraudshield/fraudshield-backend
-sudo npm ci --omit=dev --ignore-scripts && sudo npm rebuild sqlite3
+sudo npm ci --omit=dev --ignore-scripts
 
 # 3. secrets
 sudo cp .env.example /etc/fraudshield/fraudshield.env      # then edit real values
@@ -178,3 +178,13 @@ Rotation is manual and must be authorised by the system owner. Never paste secre
 ## 10. Scaling limits
 
 SQLite + in-process rate limits + in-process Gmail watchers mean **one instance**. If you need more than one instance, first move sessions/rate limits to a shared store (e.g. Redis) and the database to PostgreSQL, and run the Gmail watchers in a single worker.
+
+## 10. Render (free plan)
+
+`render.yaml` at the repository root describes the service: Docker build of `fraudshield-backend/`, free plan, health check `/healthz`.
+
+- **Database:** free Render services have no persistent disk, so set `DATABASE_URL` + `DATABASE_AUTH_TOKEN` to a Turso database (`turso db create fraudshield`, `turso db show --url fraudshield`, `turso db tokens create fraudshield`). Migrations run on start. Backups: Turso point-in-time restore / `turso db shell fraudshield .dump` (the `db:backup` script is for local files only).
+- **Proxy:** `TRUST_PROXY=1` — Render's load balancer is the one hop that sets `X-Forwarded-For`.
+- **Mail:** Render free services block outbound SMTP (25/465/587), so `MAIL_TRANSPORT=disabled`; alert, verification and password-reset e-mails are not sent. Use a paid instance or an HTTP mail API to enable them.
+- **Sleep:** free services stop after 15 minutes without inbound requests and take ~1 minute to wake. While asleep the Gmail IMAP watcher is not running (it resumes from the last processed message on wake) and the first SMS forwarded may time out and be retried by the phone. Free instance hours (750/month) are shared by all free services in the workspace.
+- **Secrets:** set `DATA_ENCRYPTION_KEY`, `DATABASE_AUTH_TOKEN` in the dashboard (never in `render.yaml`). Do not change `DATA_ENCRYPTION_KEY` after users connect Gmail.

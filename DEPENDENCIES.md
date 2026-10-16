@@ -11,7 +11,7 @@ Generated 2026-10-16 from `fraudshield-backend/package-lock.json` (npm 12.0.2, N
 | cors | 2.8.5 | CORS for the device-ingest endpoint only | — |
 | dotenv | 17.2.2 | `.env` loading (development) | — |
 | bcryptjs | 3.0.2 | Password / document-number hashing (pure JS) | — |
-| sqlite3 | 6.0.1 | Database driver (native) | **allowed** (reviewed: builds the native addon) |
+| @libsql/client | 0.17.4 | Database driver (local file or hosted Turso; prebuilt native binaries, no install script) | not needed |
 | multer | 2.4.0 | Multipart uploads | — |
 | nodemailer | 10.1.1 | Outbound e-mail | — |
 | imapflow | 2.5.0 | Gmail IMAP IDLE client | — |
@@ -39,7 +39,7 @@ A clean audit only means no *known* advisories at the time of the run; it says n
 
 ## Supply-chain controls
 
-- Lifecycle scripts are blocked by default (npm 12) and allow-listed per package in `package.json` → `allowScripts`. CI and the Dockerfile use `npm ci --ignore-scripts` + `npm rebuild sqlite3`.
+- Lifecycle scripts are blocked by default (npm 12) and allow-listed per package in `package.json` → `allowScripts`. CI and the Dockerfile use `npm ci --ignore-scripts`; no dependency needs a lifecycle script (`sqlite3` was replaced by `@libsql/client`).
 - Lockfile committed; installs use `npm ci`.
 - Browser CDN script (Chart.js 4.4.1) loaded with Subresource Integrity (`sha384-…`); fonts from Google Fonts (CSS only; scripts are not loaded from there).
 - Dependabot (`.github/dependabot.yml`): weekly npm, Docker and GitHub Actions updates; semver-major updates are excluded from automation and need human review.

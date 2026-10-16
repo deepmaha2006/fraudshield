@@ -1,0 +1,37 @@
+# Render blueprint — FraudShield SOC on the free plan.
+#
+# Free web services have no persistent disk, so the database is a hosted libSQL
+# (Turso) database and profile pictures are stored in it. Secrets are entered in
+# the Render dashboard (sync: false) and never committed.
+services:
+  - type: web
+    name: fraudshield
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: fraudshield-backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "3000"
+      # Render's edge load balancer is the single proxy hop in front of the app.
+      - key: TRUST_PROXY
+        value: "1"
+      # Render free web services block outbound SMTP (ports 25/465/587).
+      - key: MAIL_TRANSPORT
+        value: disabled
+      - key: PUBLIC_BASE_URL       # https://<service>.onrender.com (or your custom domain)
+        sync: false
+      - key: DATA_ENCRYPTION_KEY   # 64 hex chars; never change once Gmail is connected
+        sync: false
+      - key: DATABASE_URL          # libsql://<db>-<org>.turso.io
+        sync: false
+      - key: DATABASE_AUTH_TOKEN   # turso db tokens create <db>
+        sync: false

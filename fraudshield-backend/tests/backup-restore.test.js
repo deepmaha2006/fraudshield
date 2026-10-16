@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { db, tmpDir } = require('./helpers');
+const { db, tmpDir, releaseDbFiles } = require('./helpers');
 
 const backupDir = path.join(tmpDir, 'backups');
 const run = (script, args) => execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', script), ...args], { env: process.env, encoding: 'utf8' });
@@ -27,15 +27,16 @@ test('backup is consistent, verified, and restorable', async () => {
     // Simulate data loss after the backup, then restore with the app stopped.
     await db.run("DELETE FROM users WHERE email = 'backup@example.test'");
     await db.close();
+    await releaseDbFiles();
     const restored = JSON.parse(run('restore-db.js', [out.backup, '--yes']).split('\n')[0]);
     assert.equal(restored.integrity, 'ok');
     assert.ok(fs.readdirSync(tmpDir).some(f => f.includes('.pre-restore-')), 'previous DB kept aside, not deleted');
 
-    const sqlite3 = require('sqlite3');
-    const check = new sqlite3.Database(process.env.DB_FILE);
-    const row = await new Promise((r, j) => check.get("SELECT email FROM users WHERE email = 'backup@example.test'", (e, x) => e ? j(e) : r(x)));
-    await new Promise(r => check.close(r));
-    assert.equal(row.email, 'backup@example.test');
+    const { createClient } = require('@libsql/client');
+    const check = createClient({ url: `file:${process.env.DB_FILE}` });
+    const { rows } = await check.execute("SELECT email FROM users WHERE email = 'backup@example.test'");
+    check.close();
+    assert.equal(rows[0]?.email, 'backup@example.test');
 });
 
 test('restore rejects a tampered backup', () => {

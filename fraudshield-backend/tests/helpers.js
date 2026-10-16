@@ -27,6 +27,14 @@ const db = require('../db');
 const { createApp } = require('../app');
 const mailer = require('../mailer');
 
+// libSQL releases its file handle when the native connection is garbage-collected; Windows
+// refuses to rename/delete an open file, so collect before touching the database files.
+async function releaseDbFiles() {
+    if (process.platform !== 'win32' || !global.gc) return;
+    global.gc();
+    await new Promise(r => setTimeout(r, 50)); // native finalizers run after the collection
+}
+
 async function startServer() {
     await db.migrate();
     const server = createApp().listen(0, '127.0.0.1');
@@ -38,6 +46,7 @@ async function startServer() {
             server.closeAllConnections?.();
             await new Promise(r => server.close(r));
             await db.close();
+            await releaseDbFiles();
             fs.rmSync(dir, { recursive: true, force: true });
         },
     };
@@ -103,4 +112,4 @@ class Client {
 let counter = 0;
 const uniqueEmail = (tag = 'user') => `${tag}.${process.pid}.${++counter}@example.test`;
 
-module.exports = { startServer, Client, uniqueEmail, db, outbox: mailer.outbox, tmpDir: dir };
+module.exports = { startServer, Client, uniqueEmail, db, outbox: mailer.outbox, tmpDir: dir, releaseDbFiles };
