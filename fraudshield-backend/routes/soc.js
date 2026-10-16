@@ -205,6 +205,16 @@ router.get('/overview', async (req, res) => {
         all('SELECT id, name, platform, messages_received, last_seen_at FROM devices WHERE user_id = ? ORDER BY id', [uid]),
     ]);
 
+    // 12-day daily totals for the dashboard bar chart (aggregated in SQL; scoped to the user).
+    const trendRows = await all(`SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS n FROM detections
+                                 WHERE user_id = ? AND created_at >= ? GROUP BY day`, [uid, daysAgoIso(12)]);
+    const trendMap = new Map(trendRows.map(r => [r.day, r.n]));
+    const trend = [];
+    for (let i = 11; i >= 0; i--) {
+        const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+        trend.push({ day, total: trendMap.get(day) || 0 });
+    }
+
     const timeline = [];
     for (let i = 6; i >= 0; i--) {
         const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
@@ -238,6 +248,7 @@ router.get('/overview', async (req, res) => {
             avgAnalysisMs: durationN ? Math.round(durationSum / durationN) : null,
         },
         timeline,
+        trend,
         bySource,
         topIndicators: topIndicators(rows7),
         topMaliciousHosts: [...maliciousHosts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([host, count]) => ({ host, count })),

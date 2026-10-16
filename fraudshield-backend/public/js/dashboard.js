@@ -1,142 +1,187 @@
-// dashboard.js — SOC overview.
+// dashboard.js — minimalist light dashboard over real FraudShield data.
+// Everything rendered from detections is attacker-controlled: always esc()/defang().
 
 (async () => {
-    if (!(await FS.init())) return;
-    const { esc, icon, verdictBadge, riskBar, sourceLabel, timeAgo, fmtNum, defang } = FS;
+    if (!(await FS.init({ shell: false }))) return;
+    const { esc, icon, timeAgo, fmtNum, defang, SOURCES } = FS;
     const $ = id => document.getElementById(id);
-    const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-    $('investigate-btn').innerHTML = `${icon('search')}Investigate URL / message`;
+    // ------------------------------------------------------------ static chrome
+    document.querySelectorAll('[data-icon]').forEach(el => {
+        // Wrappers with a class keep their box (e.g. the workspace avatar); bare spans become the icon.
+        if (el.className) el.innerHTML = icon(el.dataset.icon);
+        else el.outerHTML = icon(el.dataset.icon);
+    });
+
+    const u = FS.user();
+    const userBtn = $('user-btn');
+    if (u.avatarUrl) {
+        const img = document.createElement('img');
+        img.src = u.avatarUrl;
+        img.alt = '';
+        userBtn.appendChild(img);
+    } else {
+        userBtn.textContent = FS.initials(u.name);
+    }
+    $('user-menu-label').textContent = u.email || u.name || '';
+
+    // Menus (workspace + account): one open at a time, close on outside click / Escape.
+    const menus = [[$('ws-btn'), $('ws-menu')], [userBtn, $('user-menu')]];
+    const closeMenus = () => menus.forEach(([b, m]) => { m.classList.add('hidden'); b.setAttribute('aria-expanded', 'false'); });
+    for (const [btn, menu] of menus) {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const open = menu.classList.contains('hidden');
+            closeMenus();
+            if (open) { menu.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); }
+        });
+    }
+    document.addEventListener('click', closeMenus);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
+    $('logout-btn').addEventListener('click', () => FS.logout());
+
+    $('search-form').addEventListener('submit', e => {
+        e.preventDefault();
+        const q = e.target.q.value.trim();
+        location.href = q ? `/detections.html?q=${encodeURIComponent(q)}` : '/detections.html';
+    });
 
     FS.banner({
-        id: 'release-2026-10-live-monitoring', // change the id to show a new announcement to everyone
-        variant: 'rainbow',
+        id: 'release-2026-10-live-monitoring',
+        container: $('banner-slot'),
         height: '2.5rem',
-        message: '🎉 New: real-time Gmail & Android SMS monitoring — every link is analysed live, no blocklists.',
+        message: 'New: real-time Gmail & Android SMS monitoring — every link is analysed live, no blocklists.',
         link: { href: '/integrations.html', text: 'Connect a source →' },
     });
 
+    // ------------------------------------------------------------ components
+    const metricCard = ({ title, iconName, value, sub }) => `
+      <article class="ld-card ld-metric">
+        <div class="ld-metric-head"><span class="ld-metric-title">${esc(title)}</span>${icon(iconName)}</div>
+        <div class="ld-metric-value">${esc(value)}</div>
+        <div class="ld-metric-sub">${esc(sub)}</div>
+      </article>`;
+
+    const activityRow = d => {
+        const src = SOURCES[d.source] || { label: d.source, icon: 'file' };
+        const title = d.subject || (/^https?:/i.test(d.target) ? defang(d.target) : d.target);
+        const sub = [src.label, d.sender, timeAgo(d.created_at)].filter(Boolean).join(' · ');
+        return `
+          <li class="ld-row" data-id="${d.id}" tabindex="0" role="button" aria-label="Open detection ${d.id}">
+            <span class="ld-row-avatar" title="${esc(src.label)}">${icon(src.icon)}</span>
+            <span style="min-width:0"><div class="ld-row-title">${esc(title)}</div><div class="ld-row-sub">${esc(sub)}</div></span>
+            <span class="ld-row-meta"><div class="ld-row-risk">${esc(d.risk)}<span class="dim" style="font-weight:400">/100</span></div>
+              <div class="ld-row-verdict ${esc(d.verdict)}">${esc(FS.VERDICT_LABEL[d.verdict] || d.verdict)}</div></span>
+          </li>`;
+    };
+
+    const sourceRow = (iconName, name, detail, state, dotClass) => `
+      <div class="ld-source">
+        <span class="ld-source-name">${icon(iconName)}<span style="min-width:0"><div style="font-weight:500">${esc(name)}</div><div class="dim truncate" style="font-size:12.5px">${esc(detail)}</div></span></span>
+        <span class="ld-source-state"><span class="dot ${dotClass}"></span>${esc(state)}</span>
+      </div>`;
+
+    // ------------------------------------------------------------ renderers
+    function renderMetrics(k) {
+        const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+        $('metrics').innerHTML = [
+            { title: 'Analysed', iconName: 'activity', value: fmtNum(k.total24h), sub: `Last 24 hours · ${fmtNum(k.total7d)} in 7 days` },
+            { title: 'Malicious', iconName: 'shieldAlert', value: fmtNum(k.malicious24h), sub: `${pct(k.malicious24h, k.total24h)}% of the last 24 hours` },
+            { title: 'Open incidents', iconName: 'inbox', value: fmtNum(k.openIncidents), sub: 'Suspicious or malicious, awaiting triage' },
+            { title: 'Time to verdict', iconName: 'clock', value: k.avgAnalysisMs != null ? `${(k.avgAnalysisMs / 1000).toFixed(1)}s` : '—', sub: k.avgConfidence != null ? `Live probe · ${k.avgConfidence}% confidence` : 'Live probe, 7-day average' },
+        ].map(metricCard).join('');
+    }
+
+    const dayLabel = iso => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
     let chart;
-    const VERDICTS = [['legit', 'Legit', '--legit'], ['suspicious', 'Suspicious', '--suspicious'], ['malicious', 'Malicious', '--malicious']];
+    function renderTrend(trend) {
+        $('range-text').textContent = `${dayLabel(trend[0].day)} – ${dayLabel(trend.at(-1).day)}, ${trend.at(-1).day.slice(0, 4)}`;
+        $('trend-table').innerHTML = `<table class="data"><thead><tr><th>Day</th><th>Detections</th></tr></thead><tbody>${
+            trend.map(d => `<tr><td>${esc(dayLabel(d.day))}</td><td class="mono">${d.total}</td></tr>`).join('')}</tbody></table>`;
 
-    function kpi(label, value, meta, barPct, barColor) {
-        return `<div class="panel kpi"><div class="eyebrow">${esc(label)}</div><div class="value">${value}</div>
-          <div class="meta">${meta}</div>${barPct != null ? `<div class="bar"><span style="width:${barPct}%;background:${barColor}"></span></div>` : ''}</div>`;
-    }
-
-    function renderKpis(k) {
-        const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
-        $('kpis').innerHTML = [
-            kpi('Analysed · 24h', fmtNum(k.total24h), `${fmtNum(k.total7d)} in the last 7 days`),
-            kpi('Malicious · 24h', fmtNum(k.malicious24h), `${pct(k.malicious24h, k.total24h)}% of traffic`, pct(k.malicious24h, k.total24h), 'var(--malicious)'),
-            kpi('Suspicious · 24h', fmtNum(k.suspicious24h), `${pct(k.suspicious24h, k.total24h)}% of traffic`, pct(k.suspicious24h, k.total24h), 'var(--suspicious)'),
-            kpi('Open incidents', fmtNum(k.openIncidents), 'awaiting triage'),
-            kpi('Mean time to verdict', k.avgAnalysisMs != null ? `${(k.avgAnalysisMs / 1000).toFixed(1)}s` : '—', 'live probe, 7d average'),
-            kpi('Mean confidence', k.avgConfidence != null ? `${k.avgConfidence}%` : '—', 'probe stages completed'),
-        ].join('');
-    }
-
-    function renderTimeline(timeline) {
-        const labels = timeline.map(d => new Date(d.day + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }));
-        $('timeline-legend').innerHTML = VERDICTS.map(([, l, v]) => `<span><i style="background:var(${v})"></i>${l}</span>`).join('');
-        $('timeline-table').innerHTML = `<table class="data"><thead><tr><th>Day</th>${VERDICTS.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead>
-          <tbody>${timeline.map((d, i) => `<tr><td>${esc(labels[i])}</td>${VERDICTS.map(([k]) => `<td class="mono">${d[k]}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-
-        const datasets = VERDICTS.map(([k, l, v]) => ({
-            label: l, data: timeline.map(d => d[k]), backgroundColor: css(v),
-            borderColor: css('--surface-1'), borderWidth: { top: 2 }, borderSkipped: false, borderRadius: 3, maxBarThickness: 34,
-        }));
-        if (chart) { chart.data.labels = labels; chart.data.datasets.forEach((ds, i) => ds.data = datasets[i].data); chart.update(); return; }
-        chart = new Chart($('timeline'), {
+        const labels = trend.map(d => dayLabel(d.day));
+        const data = trend.map(d => d.total);
+        if (chart) { chart.data.labels = labels; chart.data.datasets[0].data = data; chart.update(); return; }
+        chart = new Chart($('trend'), {
             type: 'bar',
-            data: { labels, datasets },
+            data: { labels, datasets: [{ label: 'Detections', data, backgroundColor: '#18181b', hoverBackgroundColor: '#3f3f46', borderRadius: 4, borderSkipped: 'start', maxBarThickness: 44 }] },
             options: {
                 maintainAspectRatio: false,
                 animation: { duration: 300 },
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { backgroundColor: css('--surface-3'), borderColor: css('--border-strong'), borderWidth: 1, titleColor: css('--text'), bodyColor: css('--text-2'), padding: 10, boxPadding: 4 },
+                    tooltip: { backgroundColor: '#18181b', titleColor: '#fff', bodyColor: '#e4e4e7', padding: 10, displayColors: false,
+                        callbacks: { label: c => `${c.parsed.y} detection${c.parsed.y === 1 ? '' : 's'}` } },
                 },
                 scales: {
-                    x: { stacked: true, grid: { display: false }, ticks: { color: css('--text-3'), font: { size: 11 } }, border: { color: css('--border') } },
-                    y: { stacked: true, beginAtZero: true, ticks: { color: css('--text-3'), precision: 0, font: { size: 11 } }, grid: { color: css('--border') }, border: { display: false } },
+                    x: { grid: { display: false }, border: { display: false }, ticks: { color: '#777780', font: { size: 12 }, maxRotation: 0, autoSkipPadding: 10 } },
+                    y: { beginAtZero: true, grid: { display: false }, border: { display: false }, ticks: { color: '#777780', font: { size: 12 }, precision: 0, maxTicksLimit: 6 } },
                 },
             },
         });
     }
 
-    function renderCoverage(integ) {
-        const g = integ.gmail;
-        const gState = !g ? ['', 'Not connected'] : g.live === 'live' ? ['live', 'Live · IMAP IDLE'] : g.status === 'paused' ? ['', 'Paused'] :
-            g.status === 'auth_failed' ? ['down', 'Credentials rejected'] : ['warn', g.status];
-        const devs = integ.devices || [];
-        const recent = d => d.last_seen_at && Date.now() - new Date(d.last_seen_at) < 24 * 3600 * 1000;
-        $('coverage').innerHTML = `
-          <div class="row" style="justify-content:space-between">
-            <div class="row">${icon('mail')}<div><div style="font-weight:500">Gmail</div><div class="dim" style="font-size:12px">${g ? esc(g.email) : 'Connect an inbox to scan mail as it arrives'}</div></div></div>
-            <div class="row" style="font-size:12px"><span class="dot ${gState[0]}"></span>${esc(gState[1])}</div>
-          </div>
-          ${g ? `<div class="dim" style="font-size:12px">${fmtNum(g.messages_scanned)} messages scanned${g.last_event_at ? ` · last ${timeAgo(g.last_event_at)}` : ''}</div>` : ''}
-          <div style="border-top:1px solid var(--border)"></div>
-          <div class="row" style="justify-content:space-between">
-            <div class="row">${icon('phone')}<div><div style="font-weight:500">Android SMS</div><div class="dim" style="font-size:12px">${devs.length ? `${devs.length} paired device${devs.length > 1 ? 's' : ''}` : 'Pair a phone to scan SMS in real time'}</div></div></div>
-            <div class="row" style="font-size:12px"><span class="dot ${devs.some(recent) ? 'live' : devs.length ? 'warn' : ''}"></span>${devs.some(recent) ? 'Reporting' : devs.length ? 'Idle' : 'None'}</div>
-          </div>
-          ${devs.map(d => `<div class="dim" style="font-size:12px">${esc(d.name)} · ${fmtNum(d.messages_received)} SMS${d.last_seen_at ? ` · seen ${timeAgo(d.last_seen_at)}` : ' · never seen'}</div>`).join('')}
-          ${!g || !devs.length ? `<a class="btn btn-sm" href="/integrations.html" style="align-self:flex-start">${icon('plug')}Connect a source</a>` : ''}`;
+    function renderActivity(recent, total7d) {
+        $('activity-sub').textContent = `${fmtNum(total7d)} item${total7d === 1 ? '' : 's'} analysed in the last 7 days.`;
+        $('activity').innerHTML = recent.length
+            ? recent.slice(0, 5).map(activityRow).join('')
+            : '<li class="ld-empty">No detections yet. Investigate a link or connect Gmail / Android SMS.</li>';
     }
 
-    function feedRow(d) {
-        const main = d.subject || d.target;
-        const sub = d.sender || d.summary || '';
-        return `<tr class="clickable" data-id="${d.id}" tabindex="0">
-          <td class="nowrap dim" title="${esc(d.created_at)}">${timeAgo(d.created_at)}</td>
-          <td class="nowrap">${sourceLabel(d.source)}</td>
-          <td class="cell-main"><div class="t ${d.subject ? '' : 'mono'}">${esc(d.subject ? main : defang(main))}</div><div class="s">${esc(sub)}</div></td>
-          <td>${verdictBadge(d.verdict)}</td>
-          <td>${riskBar(d.risk)}</td></tr>`;
-    }
-
-    function renderFeed(rows) {
-        $('feed').innerHTML = rows.length ? rows.map(feedRow).join('') :
-            `<tr><td colspan="5"><div class="empty">${icon('alert')}<div>No detections yet. Connect Gmail or an Android phone, or investigate a link.</div></div></td></tr>`;
-    }
-
-    function hbars(el, items, labelFn, color) {
+    function renderIndicators(items) {
         const max = Math.max(1, ...items.map(i => i.count));
-        el.innerHTML = items.length ? items.map(i => `<div class="hbar"><span class="lbl" title="${esc(labelFn(i))}">${esc(labelFn(i))}</span><span class="n">${i.count}</span>
-          <div class="track"><span style="width:${i.count / max * 100}%;background:${color}"></span></div></div>`).join('') : `<div class="dim" style="font-size:12.5px">Nothing to show yet.</div>`;
+        $('indicators').innerHTML = items.length ? items.slice(0, 6).map(i => `
+          <div class="hbar"><span class="lbl" title="${esc(i.label)}">${esc(i.label)}</span><span class="n">${i.count}</span>
+            <div class="track"><span style="width:${(i.count / max) * 100}%"></span></div></div>`).join('')
+            : '<div class="ld-empty" style="padding:12px 0;text-align:left">Nothing suspicious in the last 7 days.</div>';
     }
 
+    function renderSources(integ) {
+        const g = integ.gmail;
+        const devs = integ.devices || [];
+        const live = g && g.live === 'live';
+        const reporting = devs.some(d => d.last_seen_at && Date.now() - new Date(d.last_seen_at) < 864e5);
+        $('sources').innerHTML = [
+            sourceRow('mail', 'Gmail', g ? `${g.email} · ${fmtNum(g.messages_scanned)} scanned` : 'Not connected',
+                g ? (live ? 'Live' : g.status) : 'Off', g ? (live ? 'live' : 'warn') : ''),
+            sourceRow('phone', 'Android SMS', devs.length ? `${devs.length} device${devs.length > 1 ? 's' : ''} · ${fmtNum(devs.reduce((s, d) => s + d.messages_received, 0))} SMS` : 'No paired phone',
+                devs.length ? (reporting ? 'Reporting' : 'Idle') : 'Off', devs.length ? (reporting ? 'live' : 'warn') : ''),
+            sourceRow('search', 'Manual investigations', 'URLs, messages and screenshots', 'Ready', 'live'),
+        ].join('');
+    }
+
+    // ------------------------------------------------------------ data
+    let recent = [];
+    let total7d = 0;
     async function load() {
         const o = await FS.api('/overview');
-        renderKpis(o.kpis);
-        renderTimeline(o.timeline);
-        renderCoverage(o.integrations);
-        renderFeed(o.recent);
-        hbars($('indicators'), o.topIndicators, i => i.label, 'var(--serious)');
-        hbars($('hosts'), o.topMaliciousHosts, i => defang(i.host), 'var(--malicious)');
+        recent = o.recent;
+        total7d = o.kpis.total7d;
+        renderMetrics(o.kpis);
+        renderTrend(o.trend);
+        renderActivity(o.recent, o.kpis.total7d);
+        renderIndicators(o.topIndicators);
+        renderSources(o.integrations);
         FS.setOpenCount(o.kpis.openIncidents);
     }
 
-    $('feed').addEventListener('click', e => { const tr = e.target.closest('tr[data-id]'); if (tr) Drawer.open(tr.dataset.id); });
-    $('feed').addEventListener('keydown', e => { const tr = e.target.closest('tr[data-id]'); if (tr && e.key === 'Enter') Drawer.open(tr.dataset.id); });
+    const openRow = el => el && Drawer.open(el.dataset.id);
+    $('activity').addEventListener('click', e => openRow(e.target.closest('.ld-row')));
+    $('activity').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRow(e.target.closest('.ld-row')); } });
 
     let reloadTimer;
     const scheduleReload = () => { clearTimeout(reloadTimer); reloadTimer = setTimeout(() => load().catch(() => {}), 1200); };
-
     FS.on('detection', d => {
-        const tbody = $('feed');
-        if (tbody.querySelector('.empty')) tbody.innerHTML = '';
-        tbody.insertAdjacentHTML('afterbegin', feedRow(d));
-        tbody.firstElementChild.classList.add('flash');
-        while (tbody.children.length > 25) tbody.lastElementChild.remove();
+        recent = [d, ...recent];
+        total7d += 1;
+        renderActivity(recent, total7d);
+        $('activity').firstElementChild?.classList.add('flash');
         scheduleReload();
     });
     FS.on('integration', scheduleReload);
     Drawer.onStatus(scheduleReload);
-    setInterval(() => document.querySelectorAll('#feed td[title]').forEach(td => td.textContent = timeAgo(td.title)), 30000);
 
     load().catch(err => FS.toast(err.message, 'error'));
 })();

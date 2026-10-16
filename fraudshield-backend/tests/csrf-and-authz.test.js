@@ -57,6 +57,23 @@ test('a user cannot read, modify or enumerate another user\'s detections', async
     assert.equal(report.json.total, 0);
 });
 
+test('dashboard trend has 12 days and counts only the caller\'s detections', async () => {
+    const email = uniqueEmail('trend');
+    const c = await new Client(srv.base).signup(email);
+    const id = await uid(email);
+    await seedDetection(id);
+    await seedDetection(id);
+    const other = uniqueEmail('trendother');
+    await new Client(srv.base).signup(other);
+    await seedDetection(await uid(other));
+
+    const r = await c.get('/api/overview');
+    assert.equal(r.status, 200);
+    assert.equal(r.json.trend.length, 12);
+    assert.equal(r.json.trend.at(-1).day, new Date().toISOString().slice(0, 10));
+    assert.equal(r.json.trend.reduce((s, d) => s + d.total, 0), 2);
+});
+
 test('a user cannot revoke another user\'s device', async () => {
     const a = await new Client(srv.base).signup(uniqueEmail('devowner'));
     const b = await new Client(srv.base).signup(uniqueEmail('devattacker'));

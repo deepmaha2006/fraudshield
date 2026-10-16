@@ -3,58 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Overview · FraudShield SOC</title>
+  <title>Dashboard · FraudShield SOC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/console.css">
+  <link rel="stylesheet" href="css/dashboard-light.css">
 </head>
-<body data-page="overview">
-  <main>
-    <div class="page-head">
-      <div>
-        <h2>Security overview</h2>
-        <p>Live detections from Gmail, Android SMS and manual investigations. Updates as events arrive.</p>
-      </div>
-      <a class="btn btn-primary" href="/analyzer.html" id="investigate-btn"></a>
+<body class="light" data-page="overview">
+  <div id="banner-slot"></div>
+
+  <header class="ld-nav">
+    <button class="ld-workspace" id="ws-btn" type="button" aria-haspopup="true" aria-expanded="false">
+      <span class="ld-ws-avatar" data-icon="shield"></span>
+      FraudShield SOC
+      <span data-icon="chevronsUpDown"></span>
+    </button>
+
+    <nav class="ld-links" aria-label="Primary">
+      <a href="/dashboard.html" class="active" aria-current="page">Overview</a>
+      <a href="/analyzer.html">Investigate</a>
+      <a href="/detections.html">Detections <span class="count hidden" id="nav-open-count"></span></a>
+      <a href="/integrations.html">Integrations</a>
+    </nav>
+
+    <div class="ld-nav-right">
+      <form class="ld-search" id="search-form" role="search">
+        <span data-icon="search"></span>
+        <input type="search" name="q" placeholder="Search detections…" aria-label="Search detections" maxlength="100" autocomplete="off">
+      </form>
+      <span class="ld-live" id="feed-state"></span>
+      <button class="ld-avatar-btn" id="user-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu"></button>
     </div>
 
-    <section class="grid grid-kpi" id="kpis" aria-label="Key metrics"></section>
+    <div class="ld-menu ld-menu-ws hidden" id="ws-menu" role="menu">
+      <div class="ld-menu-label">Workspace</div>
+      <a href="/weekly-summary.html" role="menuitem"><span data-icon="report"></span>Reports</a>
+      <a href="/integrations.html" role="menuitem"><span data-icon="plug"></span>Sources &amp; integrations</a>
+      <a href="/profile.html" role="menuitem"><span data-icon="settings"></span>Settings</a>
+    </div>
+    <div class="ld-menu ld-menu-user hidden" id="user-menu" role="menu">
+      <div class="ld-menu-label" id="user-menu-label"></div>
+      <a href="/profile.html" role="menuitem"><span data-icon="user"></span>Profile &amp; security</a>
+      <button type="button" id="logout-btn" role="menuitem"><span data-icon="logout"></span>Sign out</button>
+    </div>
+  </header>
 
-    <section class="grid grid-2" style="margin-top:16px">
-      <div class="panel">
-        <div class="panel-head"><h3>Detections · last 7 days</h3><span class="sub">by verdict</span>
-          <div class="actions legend" id="timeline-legend"></div></div>
-        <div class="panel-body"><div class="chart-box"><canvas id="timeline" aria-label="Detections per day by verdict"></canvas></div>
-          <details style="margin-top:10px"><summary class="dim" style="cursor:pointer;font-size:12px">Table view</summary><div id="timeline-table" class="table-wrap"></div></details>
-        </div>
+  <main class="ld-page">
+    <div class="ld-header">
+      <h1>Dashboard</h1>
+      <div class="ld-header-actions">
+        <span class="ld-range" id="range" title="Period covered by the chart"><span data-icon="calendar"></span><span id="range-text">—</span></span>
+        <a class="ld-primary" href="/analyzer.html"><span data-icon="search"></span>Investigate</a>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h3>Monitoring coverage</h3><div class="actions"><a class="btn btn-sm" href="/integrations.html">Manage</a></div></div>
-        <div class="panel-body stack" id="coverage"></div>
+    </div>
+
+    <nav class="ld-tabs" aria-label="Dashboard sections">
+      <a href="/dashboard.html" class="active" aria-current="page">Overview</a>
+      <a href="/detections.html">Detections</a>
+      <a href="/weekly-summary.html">Reports</a>
+      <a href="/integrations.html">Sources</a>
+    </nav>
+
+    <section class="ld-metrics" id="metrics" aria-label="Key metrics"></section>
+
+    <section class="ld-main">
+      <div class="ld-card ld-panel">
+        <h2>Detections</h2>
+        <div class="ld-sub">Items analysed per day, last 12 days</div>
+        <div class="ld-chart"><canvas id="trend" role="img" aria-label="Bar chart of detections per day over the last 12 days"></canvas></div>
+        <details style="margin-top:10px"><summary class="dim" style="cursor:pointer;font-size:12px">Table view</summary><div id="trend-table" class="table-wrap"></div></details>
+      </div>
+      <div class="ld-card ld-panel">
+        <h2>Recent detections</h2>
+        <div class="ld-sub" id="activity-sub">—</div>
+        <ul class="ld-activity" id="activity"></ul>
       </div>
     </section>
 
-    <section class="grid grid-2" style="margin-top:16px">
-      <div class="panel">
-        <div class="panel-head"><h3>Live detection feed</h3><span class="sub" id="feed-sub">most recent first</span>
-          <div class="actions"><a class="btn btn-sm" href="/detections.html">Open queue</a></div></div>
-        <div class="table-wrap">
-          <table class="data">
-            <thead><tr><th>Time</th><th>Source</th><th>Item</th><th>Verdict</th><th>Risk</th></tr></thead>
-            <tbody id="feed"></tbody>
-          </table>
-        </div>
+    <section class="ld-secondary">
+      <div class="ld-card ld-panel">
+        <div class="row" style="justify-content:space-between"><h2>Top indicators</h2><span class="ld-sub" style="margin:0">7 days, non-legit</span></div>
+        <div class="ld-bars hbars" id="indicators"></div>
       </div>
-      <div class="grid" style="align-content:start">
-        <div class="panel">
-          <div class="panel-head"><h3>Top indicators</h3><span class="sub">7d, non-legit</span></div>
-          <div class="panel-body"><div class="hbars" id="indicators"></div></div>
-        </div>
-        <div class="panel">
-          <div class="panel-head"><h3>Malicious hosts</h3><span class="sub">7d</span></div>
-          <div class="panel-body"><div class="hbars" id="hosts"></div></div>
-        </div>
+      <div class="ld-card ld-panel">
+        <div class="row" style="justify-content:space-between"><h2>Monitoring sources</h2><a class="ld-link" href="/integrations.html">Manage</a></div>
+        <div id="sources" style="margin-top:12px"></div>
       </div>
     </section>
   </main>
