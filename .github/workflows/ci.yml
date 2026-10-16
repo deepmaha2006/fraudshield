@@ -123,6 +123,12 @@ jobs:
         with:
           fetch-depth: 0          # scan full history, not just the tip
           persist-credentials: false
+      - name: No user data, databases or env files are tracked
+        # Secret scanners miss personal content such as uploaded images; block it by path.
+        run: |
+          if git ls-files | grep -E '(^|/)(data|uploads|backups|checkpoints)/|\.(db|sqlite3?)(-wal|-shm)?$|(^|/)\.env(\..+)?$' | grep -v '\.env\.example$'; then
+            echo "::error::user data, databases or env files are tracked — remove them and update .gitignore"; exit 1
+          fi
       - name: Gitleaks (history + working tree)
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.3 \
