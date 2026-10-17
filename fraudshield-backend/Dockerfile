@@ -5,7 +5,7 @@
 # then replace both FROM lines with node:24.16.0-bookworm-slim@sha256:<digest>.
 
 # ---- build: compile the native sqlite3 module, install production deps only
-FROM node:24.16.0-bookworm-slim AS build
+FROM node:26.11.1-bookworm-slim AS build
 WORKDIR /app
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 make g++ \
@@ -17,7 +17,7 @@ COPY . .
 RUN rm -rf tests eslint.config.js .env .env.* data backups public/uploads
 
 # ---- runtime: no compilers, no npm cache, non-root, read-only code
-FROM node:24.16.0-bookworm-slim
+FROM node:26.11.1-bookworm-slim
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
