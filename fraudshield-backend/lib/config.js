@@ -81,14 +81,17 @@ function load() {
     if (cfg.mail.transport === 'smtp' && !(cfg.mail.smtpHost && cfg.mail.from)) errors.push('MAIL_TRANSPORT=smtp needs SMTP_HOST and MAIL_FROM.');
 
     // ---- production only (fail closed)
+    // ALLOW_MINIMAL_START=true skips mail and CAPTCHA checks for initial deploy only.
+    // Remove this env var and add real SMTP + Turnstile credentials before going public.
+    const minimalStart = isProd && Boolean(env.ALLOW_MINIMAL_START);
     if (isProd) {
         if (!/^https:\/\/[^/]+$/i.test(cfg.publicBaseUrl)) errors.push('PUBLIC_BASE_URL must be the https:// origin users reach the console on.');
         if (!cfg.cookieSecure) errors.push('COOKIE_SECURE must not be disabled in production.');
         if (!cfg.trustProxy) errors.push('TRUST_PROXY must name the reverse proxy (e.g. "loopback" or its IP); refusing to guess.');
         if (cfg.trustProxy === 'true' || cfg.trustProxy === '*') errors.push('TRUST_PROXY must not trust every hop.');
         if (cfg.mail.transport === 'memory') errors.push('MAIL_TRANSPORT=memory is for tests only.');
-        if (cfg.mail.transport === 'disabled') errors.push('MAIL_TRANSPORT must be configured in production (gmail or smtp); password reset and alert e-mails require a working transport.');
-        if (!cfg.turnstileSiteKey || !cfg.turnstileSecretKey) errors.push('TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are required in production (CAPTCHA cannot be skipped).');
+        if (!minimalStart && cfg.mail.transport === 'disabled') errors.push('MAIL_TRANSPORT must be configured in production (gmail or smtp); password reset and alert e-mails require a working transport.');
+        if (!minimalStart && (!cfg.turnstileSiteKey || !cfg.turnstileSecretKey)) errors.push('TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are required in production (CAPTCHA cannot be skipped).');
     } else if (cfg.mail.transport === 'disabled') {
         warnings.push('No mail transport configured: alert and password-reset e-mails are disabled.');
     }
