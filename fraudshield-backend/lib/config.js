@@ -4,9 +4,6 @@
 require('dotenv').config({ quiet: true, path: process.env.DOTENV_PATH || require('path').join(__dirname, '..', '.env') });
 
 const env = process.env;
-const NODE_ENV = env.NODE_ENV || 'development';
-const isProd = NODE_ENV === 'production';
-const isTest = NODE_ENV === 'test';
 
 // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored alternation on an env value
 const bool = (v, dflt) => v === undefined || v === '' ? dflt : /^(1|true|yes|on)$/i.test(v);
@@ -17,6 +14,11 @@ const int = (v, dflt, min, max) => {
 };
 
 function load() {
+    // Re-read on every call so reload() in tests can override NODE_ENV.
+    const NODE_ENV = env.NODE_ENV || 'development';
+    const isProd = NODE_ENV === 'production';
+    const isTest = NODE_ENV === 'test';
+
     const errors = [];
     const warnings = [];
     const check = (name, fn) => { try { return fn(); } catch (e) { errors.push(`${name}: ${e.message}`); return undefined; } };
@@ -62,6 +64,8 @@ function load() {
             smtpPass: env.SMTP_PASS || '',
         },
         logLevel: env.LOG_LEVEL || (isTest ? 'silent' : 'info'),
+        turnstileSiteKey: env.TURNSTILE_SITE_KEY || '',
+        turnstileSecretKey: env.TURNSTILE_SECRET_KEY || '',
     };
 
     // ---- always required
@@ -83,7 +87,8 @@ function load() {
         if (!cfg.trustProxy) errors.push('TRUST_PROXY must name the reverse proxy (e.g. "loopback" or its IP); refusing to guess.');
         if (cfg.trustProxy === 'true' || cfg.trustProxy === '*') errors.push('TRUST_PROXY must not trust every hop.');
         if (cfg.mail.transport === 'memory') errors.push('MAIL_TRANSPORT=memory is for tests only.');
-        if (cfg.mail.transport === 'disabled') warnings.push('MAIL_TRANSPORT=disabled: password reset and alert e-mails will not be sent.');
+        if (cfg.mail.transport === 'disabled') errors.push('MAIL_TRANSPORT must be configured in production (gmail or smtp); password reset and alert e-mails require a working transport.');
+        if (!cfg.turnstileSiteKey || !cfg.turnstileSecretKey) errors.push('TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY are required in production (CAPTCHA cannot be skipped).');
     } else if (cfg.mail.transport === 'disabled') {
         warnings.push('No mail transport configured: alert and password-reset e-mails are disabled.');
     }

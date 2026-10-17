@@ -7,6 +7,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --expose-gc --test --test-concurrency=1 \"tests/*.test.js\"",
+    "migrate": "node scripts/migrate.js",
     "audit": "npm audit --omit=dev --audit-level=moderate",
     "sbom": "npm sbom --sbom-format cyclonedx --omit=dev > sbom.cdx.json",
     "db:backup": "node scripts/backup-db.js",
@@ -29,6 +30,7 @@
     "multer": "^2.0.2",
     "nodemailer": "^10.1.1",
     "pg": "^8.23.1",
+    "sharp": "^0.35.5",
     "tesseract.js": "^5.0.3",
     "tldts": "^7.4.18"
   },

@@ -31,14 +31,15 @@ function createPool(config) {
     // Verified TLS. Supabase signs its database certificates with its own root CA (bundled);
     // DATABASE_CA_FILE points at another provider's CA.
     const caFile = config.dbCaFile || path.join(__dirname, '..', 'certs', 'supabase-ca.crt');
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- operator-supplied config path
+    let sslCa; try { sslCa = fs.readFileSync(caFile, 'utf8'); } catch { /* absent: use OS trust store (works for pooler URLs) */ }
     const pool = new Pool({
         host: u.hostname,
         port: Number(u.port) || 5432,
         user: decodeURIComponent(u.username),
         password: decodeURIComponent(u.password),
         database: decodeURIComponent(u.pathname.slice(1)) || 'postgres',
-        // eslint-disable-next-line security/detect-non-literal-fs-filename -- operator-supplied config path
-        ssl: local ? false : { ca: fs.readFileSync(caFile, 'utf8'), rejectUnauthorized: true },
+        ssl: local ? false : (sslCa ? { ca: sslCa, rejectUnauthorized: true } : { rejectUnauthorized: true }),
         max: config.dbPoolSize,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 10000,

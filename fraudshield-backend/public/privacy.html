@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>Privacy Policy · FraudShield</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/console.css">
+  <link rel="stylesheet" href="css/light.css">
+  <style>
+    .legal-wrap { max-width: 760px; margin: 48px auto; padding: 0 24px 80px; }
+    .legal-wrap h1 { font-size: 28px; margin-bottom: 8px; }
+    .legal-wrap .meta { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+    .legal-wrap h2 { font-size: 16px; font-weight: 600; margin: 28px 0 8px; }
+    .legal-wrap p, .legal-wrap li { font-size: 14px; line-height: 1.7; color: var(--text-secondary, #334155); margin-bottom: 8px; }
+    .legal-wrap ul { padding-left: 20px; }
+    .confirm { background: #fef9c3; border-left: 3px solid #ca8a04; padding: 4px 10px; border-radius: 2px; font-size: 13px; color: #713f12; }
+    .back { display: inline-block; margin-bottom: 24px; font-size: 13px; }
+  </style>
+</head>
+<body class="light">
+  <div class="legal-wrap">
+    <a class="back" href="/">← Back to FraudShield</a>
+    <h1>Privacy Policy</h1>
+    <p class="meta">Last updated: <span id="date"></span> &nbsp;·&nbsp; <span class="confirm">[CONFIRM] This is a draft template. A lawyer must review it before this service is opened to external users.</span></p>
+
+    <h2>1. Who we are</h2>
+    <p><span class="confirm">[CONFIRM operator name, registered address, and contact e-mail]</span> ("FraudShield", "we", "us", "our") operates the FraudShield SOC service available at <span class="confirm">[CONFIRM: public URL]</span>.</p>
+
+    <h2>2. Data we collect</h2>
+    <ul>
+      <li><strong>Account data:</strong> full name, e-mail address, phone number (optional).</li>
+      <li><strong>Authentication data:</strong> bcrypt-hashed password, session tokens (opaque, stored server-side).</li>
+      <li><strong>Identity verification data:</strong> document type, document number (stored as a one-way hash), name and date of birth as they appear on the document. <span class="confirm">[CONFIRM: is manual ID verification in use?]</span></li>
+      <li><strong>Detection data:</strong> URLs, message text, and screenshots you submit for analysis; analysis verdicts and reports.</li>
+      <li><strong>Gmail integration:</strong> Gmail App Password (stored AES-256-GCM encrypted), e-mail metadata (sender, subject, links) of messages your Gmail account receives. We do not store e-mail body content beyond what is needed to produce a detection report.</li>
+      <li><strong>SMS integration:</strong> SMS sender and message body forwarded from the FraudShield Android app.</li>
+      <li><strong>Technical data:</strong> IP address and user-agent recorded with each session; server logs.</li>
+    </ul>
+
+    <h2>3. How we use your data</h2>
+    <ul>
+      <li>To authenticate you and maintain your session.</li>
+      <li>To analyse URLs, messages, and e-mails for fraud and phishing on your behalf.</li>
+      <li>To send you high-risk alert e-mails (if enabled in your settings).</li>
+      <li>To send transactional e-mails (password reset, e-mail verification).</li>
+      <li>To provide usage statistics visible in your dashboard.</li>
+    </ul>
+
+    <h2>4. Data retention</h2>
+    <p>Detection records are automatically deleted after <span class="confirm">[CONFIRM: default is 180 days; configurable by operator]</span> days. Sessions and expired tokens are purged within 7 days of expiry. You may delete your account at any time from Settings; all your data is deleted immediately.</p>
+
+    <h2>5. Data sharing</h2>
+    <p>We do not sell your data. We share data only with the following sub-processors:</p>
+    <ul>
+      <li><strong>Supabase / PostgreSQL</strong> — database hosting. <span class="confirm">[CONFIRM hosting region and DPA status]</span></li>
+      <li><strong>Render</strong> — application hosting. <span class="confirm">[CONFIRM hosting region and DPA status]</span></li>
+      <li><strong>Google</strong> — Gmail SMTP sending (outbound alert e-mails only).</li>
+    </ul>
+    <p>Outbound analysis probes (DNS lookups, HTTP fetches to URLs you submit) are made from our server. No personal data is transmitted in these probes.</p>
+
+    <h2>6. Cookies</h2>
+    <p>We use a single session cookie (<code>__Host-sid</code>) that is strictly necessary for authentication. It is HttpOnly, SameSite=Strict, and Secure. No analytics, tracking, or advertising cookies are set.</p>
+
+    <h2>7. Your rights</h2>
+    <p>Subject to applicable law, you have the right to access, correct, or delete your personal data. You can delete your account and all associated data from <a href="/profile.html">Settings</a>. For other requests, contact us at <span class="confirm">[CONFIRM: privacy contact e-mail]</span>.</p>
+    <p>If you are in the European Economic Area, you have additional rights under GDPR, including the right to lodge a complaint with a supervisory authority. <span class="confirm">[CONFIRM: applicable supervisory authority]</span></p>
+
+    <h2>8. Security</h2>
+    <p>We use industry-standard measures including TLS 1.2+ for all connections, bcrypt (cost 12) for password hashing, AES-256-GCM for stored credentials, and HttpOnly secure cookies for sessions.</p>
+
+    <h2>9. Changes</h2>
+    <p>We will update this page when our practices change and notify you by e-mail for material changes.</p>
+
+    <h2>10. Contact</h2>
+    <p><span class="confirm">[CONFIRM: privacy contact e-mail and postal address]</span></p>
+  </div>
+  <script>document.getElementById('date').textContent = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });</script>
+</body>
+</html>

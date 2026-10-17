@@ -50,6 +50,10 @@ async function startServer() {
         async stop() {
             server.closeAllConnections?.();
             await new Promise(r => server.close(r));
+            // Drop the throwaway schema on Postgres so the test project stays clean across runs.
+            if (process.env.TEST_DATABASE_URL) {
+                await db.run(`DROP SCHEMA IF EXISTS "${process.env.DATABASE_SCHEMA}" CASCADE`);
+            }
             await db.close();
             await releaseDbFiles();
             fs.rmSync(dir, { recursive: true, force: true });
@@ -97,7 +101,7 @@ class Client {
     del(p, body, o = {}) { return this.req('DELETE', p, { ...o, body }); }
 
     async register(email, password = 'Correct-Horse-9', fullName = 'Test Analyst') {
-        return this.post('/api/register', { fullName, email, password });
+        return this.post('/api/register', { fullName, email, password, termsAccepted: true });
     }
 
     async login(email, password = 'Correct-Horse-9') {

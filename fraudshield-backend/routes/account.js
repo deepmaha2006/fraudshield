@@ -11,10 +11,11 @@ const { run, get, all, tx } = require('../db');
 const { log } = require('../lib/logger');
 const { sha256, randomToken } = require('../lib/secrets');
 const { createSession, clearCookie, loadSession, revokeSession, revokeAllForUser } = require('../lib/sessions');
-const { authenticate, requireCsrf, rateLimit, loginThrottle, validate, httpError, EMAIL, PASSWORD } = require('../lib/http');
+const { authenticate, requireCsrf, rateLimit, loginThrottle, validate, requireTurnstile, httpError, EMAIL, PASSWORD } = require('../lib/http');
 const { inspectImage } = require('../lib/images');
 const { sendPasswordReset, sendEmailVerification } = require('../mailer');
 const { URL_PREFIX, mimeFor } = require('../lib/avatars');
+const sharp = require('sharp');
 
 const router = express.Router();
 const BCRYPT_COST = 12;
@@ -31,8 +32,8 @@ const avatarUpload = multer({
     // Staged in the temp dir only until the content is verified; the picture itself is stored in the database.
     storage: multer.diskStorage({
         destination: os.tmpdir(),
-        // Server-chosen name; the client's filename and extension are never used.
-        filename: (req, file, cb) => cb(null, `u${req.user.id}-${randomToken(9)}.upload`),
+        // Fully-random server-chosen name: no user-identifying prefix.
+        filename: (req, file, cb) => cb(null, `${randomToken(16)}.upload`),
     }),
     limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 0 },
     fileFilter: (req, file, cb) => cb(null, /^image\/(png|jpeg|webp|gif)$/.test(file.mimetype)),
@@ -52,13 +53,23 @@ async function issueVerification(user, req) {
     await sendEmailVerification(user, `${baseUrl(req)}/verify-email.html#token=${token}`);
 }
 
+// ---------------------------------------------------------------- public configuration
+router.get('/app-config', (req, res) => {
+    res.json({
+        allowRegistration: config.allowRegistration,
+        turnstileSiteKey: config.turnstileSiteKey || null,
+    });
+});
+
 // ---------------------------------------------------------------- registration & sessions
-router.post('/register', authLimiter, validate({
+router.post('/register', authLimiter, requireTurnstile, validate({
     fullName: { type: 'string', required: true, min: 2, max: 120, label: 'Full name' },
     email: { ...EMAIL, required: true, label: 'Email' },
     password: { ...PASSWORD, required: true },
+    termsAccepted: { type: 'boolean', required: true, label: 'Terms acceptance' },
 }), async (req, res) => {
     if (!config.allowRegistration) throw httpError(403, 'Registration is closed. Ask an administrator for access.');
+    if (!req.valid.termsAccepted) throw httpError(400, 'You must accept the Terms of Service and Privacy Policy to create an account.');
     const { fullName, email, password } = req.valid;
     const generic = { message: 'If this address can be registered, the account is ready. Sign in to continue.' };
 
@@ -128,7 +139,7 @@ router.post('/logout', authenticate, requireCsrf, async (req, res) => {
 });
 
 // ---------------------------------------------------------------- password recovery
-router.post('/password/forgot', recoveryLimiter, recoveryEmailLimiter, validate({ email: { ...EMAIL, required: true } }), async (req, res) => {
+router.post('/password/forgot', recoveryLimiter, recoveryEmailLimiter, requireTurnstile, validate({ email: { ...EMAIL, required: true } }), async (req, res) => {
     const { email } = req.valid;
     const generic = { message: 'If an account exists for that address, a reset link has been sent.' };
     const user = await get('SELECT id, full_name, email FROM users WHERE lower(email) = ?', [email]);
@@ -195,7 +206,7 @@ router.use('/user', authenticate, requireCsrf);
 
 router.get('/user/profile', async (req, res) => {
     const profile = await get(`SELECT id, full_name, email, phone_number, created_at, avatar_url, email_verified_at,
-        email_high_risk_enabled, email_weekly_summary_enabled FROM users WHERE id = ?`, [req.user.id]);
+        email_high_risk_enabled FROM users WHERE id = ?`, [req.user.id]);
     if (!profile) throw httpError(404, 'User not found.');
     const v = await get('SELECT verification_status FROM identity_verifications WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1', [req.user.id]);
     profile.verification_status = v ? v.verification_status : 'Not Submitted';
@@ -221,10 +232,10 @@ router.put('/user/profile', validate({
 
 router.put('/user/preferences', validate({
     emailHighRisk: { type: 'boolean', required: true },
-    emailWeeklySummary: { type: 'boolean', required: true },
+    // emailWeeklySummary: removed (Option B — feature not yet implemented; see SECURITY_AUDIT_REPORT.md §Future work)
 }), async (req, res) => {
-    await run('UPDATE users SET email_high_risk_enabled = ?, email_weekly_summary_enabled = ? WHERE id = ?',
-        [+req.valid.emailHighRisk, +req.valid.emailWeeklySummary, req.user.id]);
+    await run('UPDATE users SET email_high_risk_enabled = ? WHERE id = ?',
+        [+req.valid.emailHighRisk, req.user.id]);
     res.json({ message: 'Notification preferences saved.' });
 });
 
@@ -278,11 +289,22 @@ router.post('/user/upload-picture', (req, res, next) => avatarUpload.single('ava
         // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is server-generated (temp dir + multer server-chosen name), never user input
         await fs.promises.unlink(req.file.path).catch(() => {});
     }
-    // Server-generated name (u<id>-<random>), extension from magic-byte sniffing.
+    // Re-encode through sharp: metadata is stripped by default (no withMetadata() call),
+    // normalises encoding, and prevents polyglot / embedded-payload files.
+    let processed;
+    try {
+        processed = await sharp(data, { animated: info.type === 'gif' })
+            .toFormat(info.type)
+            .toBuffer();
+    } catch (sharpErr) {
+        log.security('upload.rejected', { rid: req.id, uid: req.user.id, kind: 'avatar', reason: `re-encode failed: ${sharpErr.message}` });
+        throw httpError(415, 'Image could not be processed. Try a different file.');
+    }
+    // Extension from magic-byte sniffing; name is fully random (no user-ID prefix).
     const finalName = req.file.filename.replace(/\.upload$/, info.ext);
     const avatarUrl = URL_PREFIX + finalName;
     await tx(async () => {
-        await run('INSERT INTO avatars (name, user_id, mime, data) VALUES (?, ?, ?, ?)', [finalName, req.user.id, mimeFor(finalName), data]);
+        await run('INSERT INTO avatars (name, user_id, mime, data) VALUES (?, ?, ?, ?)', [finalName, req.user.id, mimeFor(finalName), processed]);
         await run('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, req.user.id]);
         await run('DELETE FROM avatars WHERE user_id = ? AND name <> ?', [req.user.id, finalName]);
     });
@@ -339,7 +361,7 @@ router.delete('/user/account', validate({ password: { type: 'string', trim: fals
 });
 
 // ---------------------------------------------------------------- support
-router.post('/support', rateLimit({ name: 'support-ip', windowMs: 60 * 60 * 1000, max: 10, keyFn: ipKey, perIp: true }), validate({
+router.post('/support', rateLimit({ name: 'support-ip', windowMs: 60 * 60 * 1000, max: 10, keyFn: ipKey, perIp: true }), requireTurnstile, validate({
     name: { type: 'string', required: true, min: 2, max: 120 },
     email: { ...EMAIL, required: true },
     phone: { type: 'string', max: 20, pattern: /^\+?[\d\s()-]{6,20}$/, patternMessage: 'Enter a valid phone number.' },

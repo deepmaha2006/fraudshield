@@ -98,7 +98,6 @@
         }
         $('member-since').textContent = `Member since ${fmtTime(profile.created_at.replace(' ', 'T') + (profile.created_at.includes('Z') ? '' : 'Z'))}`;
         $('prefs-form').emailHighRisk.checked = Boolean(profile.email_high_risk_enabled);
-        $('prefs-form').emailWeeklySummary.checked = Boolean(profile.email_weekly_summary_enabled);
         renderAvatar();
         renderVerification();
     }
@@ -126,7 +125,7 @@
     $('prefs-form').addEventListener('change', async e => {
         const f = e.currentTarget;
         try {
-            const r = await FS.api('/user/preferences', { method: 'PUT', body: { emailHighRisk: f.emailHighRisk.checked, emailWeeklySummary: f.emailWeeklySummary.checked } });
+            const r = await FS.api('/user/preferences', { method: 'PUT', body: { emailHighRisk: f.emailHighRisk.checked } });
             FS.toast(r.message, 'success');
         } catch (err) { FS.toast(err.message, 'error'); }
     });

@@ -6,7 +6,7 @@ const { startServer, Client, uniqueEmail } = require('./helpers');
 
 let srv;
 before(async () => { srv = await startServer(); });
-after(async () => { await srv.stop(); });
+after(async () => { await srv?.stop(); });
 
 test('per-IP authentication limit blocks credential stuffing across many accounts', async () => {
     const c = new Client(srv.base);

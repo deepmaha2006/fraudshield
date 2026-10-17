@@ -1,17 +1,23 @@
-# Render blueprint — FraudShield SOC on the free plan.
+# Render blueprint — FraudShield SOC.
 #
 # Free web services have no persistent disk, so the database is a hosted
-# PostgreSQL (Supabase) database and profile pictures are stored in it. Secrets
-# are entered in the Render dashboard (sync: false) and never committed.
+# PostgreSQL (Supabase) database and profile pictures are stored as BYTEA.
+# Secrets are entered in the Render dashboard (sync: false) and never committed.
+#
+# First deploy: run migrations manually before starting the service:
+#   DATABASE_URL=<your-url> node scripts/migrate.js
+# On paid Render plans preDeployCommand runs it automatically before each deploy.
 services:
   - type: web
     name: fraudshield
-    runtime: docker
+    runtime: node
     plan: free
     region: singapore
     rootDir: fraudshield-backend
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    # preDeployCommand requires a paid Render plan; on free, run migrate manually (see above).
+    # preDeployCommand: node scripts/migrate.js
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
@@ -24,9 +30,6 @@ services:
       # Render's edge load balancer is the single proxy hop in front of the app.
       - key: TRUST_PROXY
         value: "1"
-      # Render free web services block outbound SMTP (ports 25/465/587).
-      - key: MAIL_TRANSPORT
-        value: disabled
       - key: PUBLIC_BASE_URL       # https://<service>.onrender.com (or your custom domain)
         sync: false
       - key: DATA_ENCRYPTION_KEY   # 64 hex chars; never change once Gmail is connected
@@ -35,3 +38,35 @@ services:
       # postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
       - key: DATABASE_URL
         sync: false
+      - key: DATABASE_SCHEMA
+        value: fraudshield
+      # Optional: custom CA bundle for non-Supabase PostgreSQL providers
+      # - key: DATABASE_CA_FILE
+      #   sync: false
+      # ---- mail (choose one transport; MAIL_TRANSPORT required) ----
+      # Brevo free (no domain needed):  SMTP_HOST=smtp-relay.brevo.com  SMTP_PORT=2525
+      # Resend (own domain required):   SMTP_HOST=smtp.resend.com       SMTP_PORT=2465
+      - key: MAIL_TRANSPORT
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      # ---- Cloudflare Turnstile (CAPTCHA) ----
+      - key: TURNSTILE_SITE_KEY
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      # ---- optional tuning ----
+      - key: LOG_LEVEL
+        value: info
+      - key: DETECTION_RETENTION_DAYS
+        value: "180"
+      - key: ALLOW_REGISTRATION
+        value: "true"

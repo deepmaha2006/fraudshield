@@ -6,7 +6,7 @@ const { loginThrottle } = require('../lib/http');
 
 let srv;
 before(async () => { srv = await startServer(); });
-after(async () => { await srv.stop(); });
+after(async () => { await srv?.stop(); });
 
 test('registration does not reveal whether an e-mail exists', async () => {
     const c = new Client(srv.base);

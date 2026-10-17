@@ -35,7 +35,10 @@ async function waitTurn() {
 }
 
 // sqlite3 bound `undefined` as NULL; libSQL rejects it — keep the old contract.
-const bind = params => Array.isArray(params) ? params.map(v => v === undefined ? null : v) : params;
+// Postgres TEXT rejects NUL bytes (\u0000); strip them from every string param so
+// Gmail-ingested content, OCR output and engine summaries never reach the DB with NUL.
+const sanitizeParam = v => v === undefined ? null : typeof v === 'string' ? v.replace(/\0/g, '') : v;
+const bind = params => Array.isArray(params) ? params.map(sanitizeParam) : params;
 async function execute(sql, params = []) {
     const t = txContext.getStore();
     if (PG) {

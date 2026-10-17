@@ -142,6 +142,7 @@ function validate(spec, source = 'body') {
             } else {
                 if (typeof v !== 'string') return next(httpError(400, `${rule.label || key} must be text.`));
                 if (rule.trim !== false) v = v.trim();
+                v = v.replace(/\0/g, ''); // Postgres TEXT rejects NUL bytes; strip before any DB write
                 if (rule.lower) v = v.toLowerCase();
                 if (rule.min != null && v.length < rule.min) return next(httpError(400, `${rule.label || key} must be at least ${rule.min} characters.`));
                 if (rule.max != null && v.length > rule.max) return next(httpError(400, `${rule.label || key} must be at most ${rule.max} characters.`));
@@ -160,4 +161,54 @@ const EMAIL = { type: 'string', max: 254, lower: true, pattern: /^[^\s@<>"',;]+@
 // bcrypt only uses the first 72 bytes; refuse longer passwords instead of silently truncating.
 const PASSWORD = { type: 'string', trim: false, min: 8, maxBytes: 72, label: 'Password' };
 
-module.exports = { authenticate, originGuard, requireCsrf, rateLimit, loginThrottle, validate, httpError, EMAIL, PASSWORD };
+// ------------------------------------------------------------ Turnstile CAPTCHA
+const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+
+/**
+ * Server-side Cloudflare Turnstile verification.
+ * Must run BEFORE validate() — it extracts and deletes cf-turnstile-response
+ * from req.body so validate() does not reject it as an unknown field.
+ * Bypass: NODE_ENV=test with no TURNSTILE_SECRET_KEY set.
+ */
+async function requireTurnstile(req, res, next) {
+    if (config.isTest && !config.turnstileSecretKey) return next();
+
+    const token = String(req.body?.['cf-turnstile-response'] ?? '');
+    if (req.body) delete req.body['cf-turnstile-response'];
+
+    if (!token) {
+        return res.status(400).json({ message: 'Please complete the security check.' });
+    }
+
+    let data;
+    try {
+        const resp = await fetch(SITEVERIFY, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: config.turnstileSecretKey, response: token, remoteip: req.ip }),
+        });
+        data = await resp.json();
+    } catch (err) {
+        log.security('turnstile.network_error', { rid: req.id, ip: req.ip, error: err.message });
+        // In production, fail closed; in development, pass through so work can continue without internet.
+        if (config.isProd) return res.status(503).json({ message: 'Could not verify CAPTCHA. Please try again.' });
+        return next();
+    }
+
+    if (!data.success) {
+        log.security('turnstile.rejected', { rid: req.id, ip: req.ip, codes: data['error-codes'] });
+        return res.status(400).json({ message: 'CAPTCHA verification failed. Please try again.' });
+    }
+
+    if (config.publicBaseUrl && data.hostname) {
+        const expectedHost = new URL(config.publicBaseUrl).hostname;
+        if (data.hostname !== expectedHost) {
+            log.security('turnstile.hostname_mismatch', { rid: req.id, ip: req.ip, got: data.hostname, want: expectedHost });
+            return res.status(400).json({ message: 'CAPTCHA verification failed.' });
+        }
+    }
+
+    next();
+}
+
+module.exports = { authenticate, originGuard, requireCsrf, rateLimit, loginThrottle, validate, requireTurnstile, httpError, EMAIL, PASSWORD };

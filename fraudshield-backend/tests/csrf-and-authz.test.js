@@ -4,7 +4,7 @@ const { startServer, Client, uniqueEmail, db } = require('./helpers');
 
 let srv;
 before(async () => { srv = await startServer(); });
-after(async () => { await srv.stop(); });
+after(async () => { await srv?.stop(); });
 
 async function seedDetection(userId, extra = {}) {
     const { lastID } = await db.run(`INSERT INTO detections (user_id, source, kind, target, risk, verdict, confidence, summary, report)
@@ -16,19 +16,19 @@ const uid = async email => (await db.get('SELECT id FROM users WHERE email = ?',
 // ------------------------------------------------------------ CSRF
 test('state-changing requests without the CSRF token are rejected', async () => {
     const c = await new Client(srv.base).signup(uniqueEmail('csrf'));
-    const missing = await c.put('/api/user/preferences', { emailHighRisk: false, emailWeeklySummary: false }, { csrf: false });
+    const missing = await c.put('/api/user/preferences', { emailHighRisk: false }, { csrf: false });
     assert.equal(missing.status, 403);
-    const wrong = await c.put('/api/user/preferences', { emailHighRisk: false, emailWeeklySummary: false }, { headers: { 'x-csrf-token': 'x'.repeat(32) } });
+    const wrong = await c.put('/api/user/preferences', { emailHighRisk: false }, { headers: { 'x-csrf-token': 'x'.repeat(32) } });
     assert.equal(wrong.status, 403);
-    const ok = await c.put('/api/user/preferences', { emailHighRisk: false, emailWeeklySummary: false });
+    const ok = await c.put('/api/user/preferences', { emailHighRisk: false });
     assert.equal(ok.status, 200);
 });
 
 test('cross-origin requests are rejected even with valid cookies and token', async () => {
     const c = await new Client(srv.base).signup(uniqueEmail('origin'));
-    const r = await c.put('/api/user/preferences', { emailHighRisk: true, emailWeeklySummary: true }, { origin: 'https://evil.example' });
+    const r = await c.put('/api/user/preferences', { emailHighRisk: true }, { origin: 'https://evil.example' });
     assert.equal(r.status, 403);
-    const site = await c.req('PUT', '/api/user/preferences', { body: { emailHighRisk: true, emailWeeklySummary: true }, origin: null, headers: { 'sec-fetch-site': 'cross-site' } });
+    const site = await c.req('PUT', '/api/user/preferences', { body: { emailHighRisk: true }, origin: null, headers: { 'sec-fetch-site': 'cross-site' } });
     assert.equal(site.status, 403);
 });
 
@@ -94,7 +94,7 @@ test('unknown fields are rejected (no mass assignment)', async () => {
 
 test('wrong types are rejected', async () => {
     const c = await new Client(srv.base).signup(uniqueEmail('types'));
-    assert.equal((await c.put('/api/user/preferences', { emailHighRisk: 'true', emailWeeklySummary: 1 })).status, 400);
+    assert.equal((await c.put('/api/user/preferences', { emailHighRisk: 'true' })).status, 400);
     assert.equal((await c.post('/api/analyze/url', { url: ['https://a.example', 'https://b.example'] })).status, 400);
     assert.equal((await c.post('/api/analyze/message', { text: { $gt: '' } })).status, 400);
 });

@@ -19,7 +19,7 @@ function createTransport() {
             return nodemailer.createTransport({ service: 'gmail', auth: { user: m.gmailUser, pass: m.gmailPass }, tls: { minVersion: 'TLSv1.2' } });
         case 'smtp':
             return nodemailer.createTransport({
-                host: m.smtpHost, port: m.smtpPort, secure: m.smtpPort === 465, requireTLS: m.smtpPort !== 465,
+                host: m.smtpHost, port: m.smtpPort, secure: [465, 2465].includes(m.smtpPort), requireTLS: ![465, 2465].includes(m.smtpPort),
                 auth: m.smtpUser ? { user: m.smtpUser, pass: m.smtpPass } : undefined,
                 tls: { minVersion: 'TLSv1.2', rejectUnauthorized: true },
             });
@@ -30,6 +30,12 @@ function createTransport() {
     }
 }
 const transporter = createTransport();
+if (!config.isTest) {
+    const m = config.mail;
+    if (m.transport === 'gmail') log.info('mail.configured', { transport: 'gmail' });
+    else if (m.transport === 'smtp') log.info('mail.configured', { transport: 'smtp', host: m.smtpHost, port: m.smtpPort, secure: [465, 2465].includes(m.smtpPort) });
+    else log.warn('mail.not_configured', { transport: m.transport });
+}
 const fromAddress = () => `"FraudShield SOC" <${config.mail.from || 'no-reply@fraudshield.invalid'}>`;
 // eslint-disable-next-line no-control-regex -- deliberately strips control characters (log/header injection defence)
 const oneLine = s => String(s ?? '').replace(/[\r\n\u0000-\u001f]+/g, ' ').trim();
@@ -83,7 +89,7 @@ async function sendHighRiskAlert(user, detection, report) {
           Do not open the link, reply, call back, or share OTPs / PINs. Delete the message and block the sender.
         </div>
       </div>
-      <div style="background:#f1f5f9;color:#64748b;font-size:11px;padding:12px 22px">Links in this alert are defanged (hxxp, [.]) on purpose. You receive this because high-risk alerts are enabled in your FraudShield settings.</div>
+      <div style="background:#f1f5f9;color:#64748b;font-size:11px;padding:12px 22px">Links in this alert are defanged (hxxp, [.]) on purpose. You receive this because high-risk alerts are enabled in your FraudShield settings. <a href="${esc(config.publicBaseUrl)}/profile.html" style="color:#0e7490">Manage alert preferences</a>.</div>
     </div>`;
 
     return send({

@@ -1,11 +1,14 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('path');
+const { execFileSync } = require('child_process');
 const zlib = require('zlib');
+const sharp = require('sharp');
 const { startServer, Client, uniqueEmail, db } = require('./helpers');
 
 let srv;
 before(async () => { srv = await startServer(); });
-after(async () => { await srv.stop(); });
+after(async () => { await srv?.stop(); });
 
 // ------------------------------------------------------------ device ingest
 async function pairedDevice() {
@@ -84,7 +87,8 @@ test('avatar: content is verified, not the declared type (MIME spoofing)', async
     const ok = await upload(c, '/api/user/upload-picture', 'avatar', PNG_1x1, 'image/png', '../../../etc/passwd.png');
     assert.equal(ok.status, 200);
     const { avatarUrl } = await ok.json();
-    assert.match(avatarUrl, /^\/uploads\/avatars\/u\d+-[\w-]+\.png$/, 'server-chosen file name');
+    assert.match(avatarUrl, /^\/uploads\/avatars\/[A-Za-z0-9_-]{22}\.png$/, 'avatar name must be exactly 22-char random ID');
+    assert.doesNotMatch(avatarUrl, /\/u\d+-/, 'avatar name must not embed a user ID');
     const served = await fetch(srv.base + avatarUrl);
     assert.equal(served.status, 200);
     assert.equal(served.headers.get('content-type'), 'image/png');
@@ -113,4 +117,91 @@ test('oversized JSON bodies are rejected', async () => {
     const r = await c.post('/api/analyze/message', { text: 'x'.repeat(300 * 1024) });
     assert.equal(r.status, 413);
     void zlib;
+});
+
+test('avatar: EXIF metadata is stripped and image is re-encoded on upload', async () => {
+    const c = await new Client(srv.base).signup(uniqueEmail('avexif'));
+
+    // Create a 2x2 JPEG with a real EXIF Make tag embedded.
+    const base = await sharp({ create: { width: 2, height: 2, channels: 3, background: { r: 255, g: 0, b: 0 } } })
+        .png().toBuffer();
+    const jpegWithExif = await sharp(base)
+        .withMetadata({ exif: { IFD0: { Make: 'TestCamera' } } })
+        .jpeg().toBuffer();
+    // Sanity-check: the test image really does have EXIF before upload.
+    const inputMeta = await sharp(jpegWithExif).metadata();
+    assert.ok(inputMeta.exif, 'test JPEG must carry EXIF before upload');
+
+    const r = await upload(c, '/api/user/upload-picture', 'avatar', jpegWithExif, 'image/jpeg', 'photo.jpg');
+    const body = await r.json();
+    assert.equal(r.status, 200, `upload failed: ${JSON.stringify(body)}`);
+    const { avatarUrl } = body;
+
+    // Fetch the stored image and verify EXIF is gone.
+    const served = await fetch(srv.base + avatarUrl);
+    assert.equal(served.status, 200);
+    const stored = Buffer.from(await served.arrayBuffer());
+    const outputMeta = await sharp(stored).metadata();
+    assert.equal(outputMeta.exif, undefined, 'EXIF must be stripped from the stored image');
+
+    // The bytes must differ from the original (image was re-encoded, not stored as-is).
+    assert.notDeepEqual(stored, jpegWithExif, 'image must be re-encoded, not stored as-is');
+});
+
+// ------------------------------------------------------------ avatar-name migration
+const LEGACY_NAME = /^u\d+-[\w-]+\.(png|jpg|webp|gif)$/;
+const NEW_NAME    = /^[A-Za-z0-9_-]{22}\.(png|jpg|webp|gif)$/;
+
+test('avatar name migration: renames legacy u<id>-* rows and updates user references, --dry-run writes nothing', async () => {
+    // Seed a legacy avatar row directly, bypassing the upload handler.
+    const email = uniqueEmail('avmigrate');
+    const reg = await new Client(srv.base).signup(email);
+    const { id: userId } = await db.get('SELECT id FROM users WHERE email = ?', [email]);
+
+    const legacyName = `u${userId}-abc123xyz.png`;
+    const legacyUrl  = '/uploads/avatars/' + legacyName;
+    const fakeBlob   = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // PNG magic (4 bytes, just a stub)
+    await db.run('INSERT INTO avatars (name, user_id, mime, data) VALUES (?, ?, ?, ?)', [legacyName, userId, 'image/png', fakeBlob]);
+    await db.run('UPDATE users SET avatar_url = ? WHERE id = ?', [legacyUrl, userId]);
+
+    // --dry-run must not change anything.
+    const dryOut = execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'migrate-avatar-names.js'), '--dry-run'], { env: process.env, encoding: 'utf8' });
+    assert.match(dryOut, /dry.run/i, '--dry-run output must say so');
+    assert.ok(await db.get('SELECT 1 FROM avatars WHERE name = ?', [legacyName]), 'legacy row must still exist after --dry-run');
+    assert.ok((await db.get('SELECT avatar_url FROM users WHERE id = ?', [userId])).avatar_url === legacyUrl, 'user.avatar_url unchanged after --dry-run');
+
+    // Real migration.
+    const out = execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'migrate-avatar-names.js')], { env: process.env, encoding: 'utf8' });
+    assert.match(out, /Migrated \d+ avatar/i, 'migration must report success');
+
+    // Legacy row is gone; a new row exists with a random name.
+    assert.equal(await db.get('SELECT 1 FROM avatars WHERE name = ?', [legacyName]), undefined, 'legacy row must be deleted');
+    const newRow = await db.get('SELECT name FROM avatars WHERE user_id = ?', [userId]);
+    assert.ok(newRow, 'new avatar row must exist');
+    assert.doesNotMatch(newRow.name, LEGACY_NAME, 'new name must not be legacy format');
+    assert.match(newRow.name, NEW_NAME, 'new name must match random format');
+
+    // user.avatar_url is updated to the new URL.
+    const { avatar_url } = await db.get('SELECT avatar_url FROM users WHERE id = ?', [userId]);
+    assert.ok(avatar_url, 'avatar_url must not be null');
+    assert.doesNotMatch(avatar_url, /\/u\d+-/, 'user.avatar_url must not embed a user ID after migration');
+    assert.match(avatar_url, /^\/uploads\/avatars\/[A-Za-z0-9_-]{22}\.(png|jpg|webp|gif)$/, 'user.avatar_url must match new 22-char format');
+
+    // Running the migration again is a no-op (idempotent).
+    const out2 = execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'migrate-avatar-names.js')], { env: process.env, encoding: 'utf8' });
+    assert.match(out2, /Nothing to migrate/i, 'second run must be a no-op');
+});
+
+test('avatar: legacy u<id>-* names are rejected by isAvatarName() and return 404', async () => {
+    const email = uniqueEmail('av404');
+    await new Client(srv.base).signup(email);
+    const { id: userId } = await db.get('SELECT id FROM users WHERE email = ?', [email]);
+
+    const legacyName = `u${userId}-shouldnotwork.png`;
+    // Seed a row with the legacy name to confirm the NAME regex rejects it, not a DB absence.
+    await db.run('INSERT INTO avatars (name, user_id, mime, data) VALUES (?, ?, ?, ?)',
+        [legacyName, userId, 'image/png', Buffer.from([0x89, 0x50, 0x4e, 0x47])]);
+
+    const r = await fetch(srv.base + '/uploads/avatars/' + legacyName);
+    assert.equal(r.status, 404, 'legacy u<id>-* URL must return 404 after regex tightening');
 });

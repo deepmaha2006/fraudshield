@@ -11,8 +11,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 make g++ \
  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-# No dependency lifecycle scripts except the one explicitly reviewed (sqlite3 native build).
-RUN npm ci --omit=dev --ignore-scripts && npm rebuild sqlite3 && npm cache clean --force
+# No dependency lifecycle scripts (all deps are pure-JS or use pre-built WASM).
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY . .
 RUN rm -rf tests eslint.config.js .env .env.* data backups public/uploads
 

@@ -4,7 +4,7 @@ const { startServer, Client, uniqueEmail, db, outbox } = require('./helpers');
 
 let srv;
 before(async () => { srv = await startServer(); });
-after(async () => { await srv.stop(); });
+after(async () => { await srv?.stop(); });
 
 const tokenFromMail = msg => /#token=([\w-]+)/.exec(msg.text)[1];
 

@@ -6,11 +6,24 @@ const { recordDetection } = require('../lib/detections');
 
 let srv;
 before(async () => { srv = await startServer(); });
-after(async () => { await srv.stop(); });
+after(async () => { await srv?.stop(); });
 
 const tokenFrom = msg => /#token=([\w-]+)/.exec(msg.text)[1];
 const maliciousReport = { kind: 'url', risk: 95, verdict: 'malicious', confidence: 100, summary: 'test', signals: [] };
-const settle = () => new Promise(r => setTimeout(r, 100));
+// When an expected outbox count is given, poll until it is reached (or 5 s elapses).
+// Without an argument, wait a tick to confirm a non-event (no email sent).
+const settle = (expected) => {
+    if (expected === undefined) return new Promise(r => setTimeout(r, 100));
+    return new Promise((resolve, reject) => {
+        const deadline = Date.now() + 5000;
+        const check = () => {
+            if (outbox.length >= expected) return resolve();
+            if (Date.now() > deadline) return reject(new Error(`settle timed out: expected outbox.length ${expected}, got ${outbox.length}`));
+            setTimeout(check, 20);
+        };
+        check();
+    });
+};
 
 test('registration sends a single-use confirmation link (token in the fragment)', async () => {
     const email = uniqueEmail('verify');
@@ -47,7 +60,7 @@ test('high-risk alerts are NOT sent to unverified addresses (anti mail-relay)', 
 
     await db.run("UPDATE users SET email_verified_at = '2026-01-01T00:00:00.000Z' WHERE id = ?", [uid]);
     await recordDetection(uid, { source: 'manual', target: 'https://x.example/', report: maliciousReport });
-    await settle();
+    await settle(n + 1);
     assert.equal(outbox.length, n + 1, 'alert delivered once verified');
     assert.equal(outbox.at(-1).headers['X-FraudShield-Alert'], '1');
     void c;

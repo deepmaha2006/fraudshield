@@ -5,7 +5,7 @@ const { startServer, Client, uniqueEmail } = require('./helpers');
 
 let srv;
 before(async () => { srv = await startServer(); });
-after(async () => { await srv.stop(); });
+after(async () => { await srv?.stop(); });
 
 // Send a raw request line so the client does not normalise "../" away.
 function rawGet(pathname) {
@@ -36,7 +36,7 @@ test('security headers are present on pages and API responses', async () => {
     const page = await fetch(`${srv.base}/index.html`);
     const csp = page.headers.get('content-security-policy');
     assert.match(csp, /default-src 'self'/);
-    assert.match(csp, /script-src 'self' https:\/\/cdnjs\.cloudflare\.com(;|$)/, 'no unsafe-inline / unsafe-eval scripts');
+    assert.match(csp, /script-src 'self' https:\/\/cdnjs\.cloudflare\.com https:\/\/challenges\.cloudflare\.com(;|$)/, 'no unsafe-inline / unsafe-eval scripts');
     assert.match(csp, /frame-ancestors 'none'/);
     assert.match(csp, /object-src 'none'/);
     assert.equal(page.headers.get('x-content-type-options'), 'nosniff');

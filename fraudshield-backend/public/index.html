@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <title>FraudShield — Real-time phishing &amp; scam detection</title>
   <meta name="description" content="FraudShield analyses links, e-mail and SMS in real time — DNS, TLS, redirects, page behaviour and domain age — and streams verdicts into a SOC console.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,6 +12,7 @@
   <link rel="stylesheet" href="css/console.css">
   <link rel="stylesheet" href="css/landing.css">
   <link rel="stylesheet" href="css/light.css">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=_onTurnstileLoad&render=explicit" defer></script>
 </head>
 <body class="light">
   <header class="l-nav">
@@ -94,15 +96,20 @@
           </div>
           <div class="field"><label for="s-phone">Phone (optional)</label><input class="input" id="s-phone" name="phone" maxlength="20"></div>
           <div class="field"><label for="s-problem">How can we help?</label><textarea class="textarea" id="s-problem" name="problem" required maxlength="5000" style="min-height:110px"></textarea></div>
+          <div id="turnstile-support"></div>
           <div><button class="btn btn-primary" type="submit">Submit ticket</button></div>
         </form>
       </div>
     </section>
   </main>
 
-  <footer class="l-foot"><div class="l-wrap row" style="justify-content:space-between">
+  <footer class="l-foot"><div class="l-wrap row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
     <span class="dim">© <span id="year"></span> FraudShield</span>
-    <span class="dim mono" style="font-size:12px">Never click a link to check if it is safe.</span>
+    <span class="row dim" style="gap:16px;font-size:12px">
+      <a href="/privacy.html" style="color:inherit">Privacy Policy</a>
+      <a href="/terms.html" style="color:inherit">Terms of Service</a>
+      <a href="#support" style="color:inherit">Support</a>
+    </span>
   </div></footer>
 
   <!-- auth dialogs -->
@@ -122,6 +129,7 @@
       <p class="muted" style="margin:0;font-size:13px">Enter your account e-mail. If it is registered, we send a single-use link valid for 30 minutes.</p>
       <div class="field"><label for="f-email">Email</label><input class="input" id="f-email" name="email" type="email" required autocomplete="email"></div>
       <div class="callout danger hidden" data-error></div>
+      <div id="turnstile-forgot"></div>
       <button class="btn btn-primary btn-lg" type="submit">Send reset link</button>
     </form>
   </dialog>
@@ -132,6 +140,11 @@
       <div class="field"><label for="r-email">Email</label><input class="input" id="r-email" name="email" type="email" required autocomplete="email"></div>
       <div class="field"><label for="r-pass">Password</label><input class="input" id="r-pass" name="password" type="password" required minlength="8" autocomplete="new-password"><span class="hint">At least 8 characters.</span></div>
       <div class="callout danger hidden" data-error></div>
+      <label class="row" style="gap:10px;align-items:flex-start;font-size:13px;cursor:pointer">
+        <input type="checkbox" name="termsAccepted" value="true" required style="margin-top:2px;flex-shrink:0">
+        <span>I have read and agree to the <a href="/terms.html" target="_blank" style="text-decoration:underline">Terms of Service</a> and <a href="/privacy.html" target="_blank" style="text-decoration:underline">Privacy Policy</a>.</span>
+      </label>
+      <div id="turnstile-signup"></div>
       <button class="btn btn-primary btn-lg" type="submit">Create account</button>
       <p class="dim" style="margin:0;font-size:13px">Already registered? <a href="#" data-switch="login">Sign in</a></p>
     </form>

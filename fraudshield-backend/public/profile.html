@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <title>Settings · FraudShield SOC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,10 +62,7 @@
             <span><b style="font-weight:500">High-risk e-mail alerts</b><br><span class="hint">E-mail me when any source produces a detection with risk ≥ 65. Links in alerts are defanged.</span></span>
             <span class="switch"><input type="checkbox" name="emailHighRisk"><span></span></span>
           </label>
-          <label class="row" style="justify-content:space-between;flex-wrap:nowrap">
-            <span><b style="font-weight:500">Weekly summary</b><br><span class="hint">Preference is stored for the weekly digest. Delivery is not yet implemented — use Reports in the meantime.</span></span>
-            <span class="switch"><input type="checkbox" name="emailWeeklySummary"><span></span></span>
-          </label>
+          <!-- Weekly summary email removed (not yet implemented). Use the Reports page for on-demand summaries. -->
         </form>
       </section>
 

@@ -25,12 +25,14 @@ function createApp() {
             useDefaults: false,
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+                scriptSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://challenges.cloudflare.com'],
                 // Inline style attributes are used for computed widths/colours; no inline scripts are allowed.
                 styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 fontSrc: ["'self'", 'https://fonts.gstatic.com'],
                 imgSrc: ["'self'", 'data:'],
-                connectSrc: ["'self'"],
+                connectSrc: ["'self'", 'https://challenges.cloudflare.com'],
+                // Turnstile renders the challenge in an iframe hosted on challenges.cloudflare.com.
+                frameSrc: ["https://challenges.cloudflare.com"],
                 objectSrc: ["'none'"],
                 baseUri: ["'none'"],
                 frameAncestors: ["'none'"],
