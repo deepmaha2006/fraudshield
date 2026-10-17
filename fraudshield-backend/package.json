@@ -22,7 +22,7 @@
     "@libsql/client": "^0.17.4",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "imapflow": "^2.5.0",
