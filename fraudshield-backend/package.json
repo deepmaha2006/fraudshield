@@ -26,7 +26,7 @@
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "imapflow": "^2.5.0",
-    "mailparser": "^3.9.39",
+    "mailparser": "^3.10.0",
     "multer": "^2.0.2",
     "nodemailer": "^10.1.1",
     "pg": "^8.23.1",
